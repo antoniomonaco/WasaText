@@ -1,0 +1,481 @@
+openapi: 3.0.3
+info:
+  title: WasaText Api
+  description: "The api of the messaging website WasaText"
+  version: 1.0.0
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    User:
+      title: User
+      description: "This object represent a single user"
+      type: object
+      properties:
+        id:
+          description: "Unique user identifier"
+          type: integer
+          example: 1
+          readOnly: true
+        username:
+          description: "Name of the user"
+          type: string
+          example: "mario"
+    Conversation:
+      title: Conversation
+      description: "This object represent a conversation between 2 users or a group of users"
+      type: object
+      properties:
+        id:
+          description: "Unique conversation identifier"
+          type: integer
+          example: 1
+          readOnly: true
+        type:
+          description: "The type of the conversation (individual chat or group chat)"
+          type: string
+          enum: ["chat","group"]
+          example: "chat"
+        participants:
+          description: "The users that take part in the conversation"
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        latestMessage:
+          description: "Last message sent in the conversation. It will be displayed in the conversation preview"
+          type: object
+          $ref: "#/components/schemas/Message"
+    Message:
+      title: Message
+      description: "Single message sent in a conversation"
+      type: object
+      properties:
+        id:
+          description: "Unique message identifier"
+          type: integer
+          example: 1
+          readOnly: true
+        type:
+          description: "The type of the message (text or media)"
+          type: string
+          enum: ["text","media"]
+          example: text
+        sender:
+          description: "The user who sent the message"
+          type: object
+          $ref: "#/components/schemas/User"
+        timestamp:
+          description: "Date and time the message was sent"
+          type: string
+          format: date-time
+          example: "2024-11-13T11:40:09Z"
+    Comment:
+      title: Comment
+      description: "A comment on a message in a conversation"
+      type: object
+      properties:
+        id:
+          description: "Unique comment identifier"
+          type: integer
+          example: 1
+          readOnly: true
+        messageId:
+          description: "ID of the message being commented on"
+          type: integer
+          example: 1
+        content:
+          description: "Text content of the comment"
+          type: string
+          example: "This is a comment"
+        sender:
+          description: "User who made the comment"
+          type: object
+          $ref: "#/components/schemas/User"
+        timestamp:
+          description: "Date and time the comment was made"
+          type: string
+          format: date-time
+          example: "2024-11-13T11:45:09Z"
+  parameters:
+    ConversationId:
+      schema:
+        type: integer
+        example: 1
+        readOnly: true
+      name: conversationId
+      in: path
+      required: true
+      description: "Conversation id"
+    MessageId:
+      schema:
+        type: integer
+        example: 1
+        readOnly: true
+      name: messageId
+      in: path
+      required: true
+      description: "Message id"
+    CommentId:
+      schema:
+        type: integer
+        example: 1
+        readOnly: true
+      name: commentId
+      in: path
+      required: true
+      description: "Comment ID"
+          
+paths:
+  /session:
+    post:
+      tags: ["login"]
+      summary: Logs in the user
+      description: |-
+        If the user does not exist, it will be created,
+        and an identifier is returned.
+        If the user exists, the user identifier is returned.
+      operationId: doLogin
+      requestBody:
+        description: User details
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: Maria
+                  pattern: .*?\$'
+                  minLength: 3
+                  maxLength: 16
+        required: true
+      responses:
+        '201':
+          description: User log-in action successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  identifier:
+                    # change here if you decide to use an integer
+                    # or any other type of identifier
+                    type: string
+                    example: "abcdef012345"
+
+  /conversations/:
+    get:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      operationId: getMyConversations
+      description: "Get all my conversations"
+      responses:
+        '200':
+          description: "List of conversations"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+                  
+  /conversations/{conversationId}:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+    get:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      operationId: getConversation
+      description: "Get the conversation with the given id"
+      responses:
+        "200":
+          description: "Messages sent in the conversation"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+        "404":
+          description: "Conversation not found"
+    post:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      operationId: sendMessage
+      description: "Send a message in the conversation"
+      requestBody:
+        content:
+          application/json:
+            schema: 
+              $ref: "#/components/schemas/Message"
+      responses:
+        "201":
+          description: "Message sent successfully!"
+        
+  /conversations/{conversationId}/{messageId}:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+      - $ref: "#/components/parameters/MessageId"
+    post:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      operationId: forwardMessage
+      description: "Forward the given message in another conversation"
+      requestBody:
+        description: "ID of the conversation in which to send the message"
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetConversationId:
+                  type: integer
+                  example: 2
+      responses:
+        '201':
+          description: "Message forwarded successfully"
+        '404':
+          description: "Message not found"
+    delete:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      operationId: deleteMessage
+      description: "Deletes an existing message"
+      responses:
+        '200':
+          description: "Message deleted successfully"
+        '404':
+          description: "Message not found"
+
+  /conversations/{conversationId}/{messageId}/comments:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+      - $ref: "#/components/parameters/MessageId"
+    post:
+      security:
+        - bearerAuth: []
+      tags: ["comments"]
+      operationId: commentMessage
+      description: "Add a comment to a specific message in a conversation"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              example: "this is a comment"
+      responses:
+        '201':
+          description: "Comment added successfully"
+        '404':
+          description: "Message not found"
+
+    get:
+      security:
+        - bearerAuth: []
+      tags: ["comments"]
+      operationId: getComments
+      description: "Get all comments for a specific message"
+      responses:
+        '200':
+          description: "List of comments"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Comment"
+        '404':
+          description: "Message not found"
+
+  /conversations/{conversationId}/{messageId}/comments/{commentId}:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+      - $ref: "#/components/parameters/MessageId"
+      - $ref: "#/components/parameters/CommentId"
+    delete:
+      security:
+        - bearerAuth: []
+      tags: ["comments"]
+      operationId: uncommentMessage
+      description: "Remove a specific comment from a message"
+      responses:
+        '200':
+          description: "Comment deleted successfully"
+        '404':
+          description: "Comment not found"
+          
+  /conversations/{conversationId}/participants:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+    post:
+      security:
+        - bearerAuth: []
+      tags: ["groups"]
+      operationId: addToGroup
+      description: "Add a user to a group conversation.This operation is valid only for group conversations."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                  example: 2
+      responses:
+        '200':
+          description: "User added to group"
+        '400':
+          description: "Cannot add user to an individual chat"
+        '404':
+          description: "Conversation not found"
+
+    delete:
+      security:
+        - bearerAuth: []
+      tags: ["groups"]
+      operationId: leaveGroup
+      description: "Leave a group conversation.This operation is valid only for group conversations."
+      responses:
+        '200':
+          description: "Left the group successfully"
+        '400':
+          description: "Cannot leave an individual chat"
+        '404':
+          description: "Conversation not found"
+
+  /conversations/{conversationId}/name:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+    put:
+      security:
+        - bearerAuth: []
+      tags: ["groups"]
+      operationId: setGroupName
+      description: "Set or update the name of a group conversation.This operation is valid only for group conversations."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                groupName:
+                  type: string
+                  example: "New Group Name"
+      responses:
+        '200':
+          description: "Group name updated successfully"
+        '400':
+          description: "Cannot set name for an individual chat"
+        '404':
+          description: "Conversation not found"
+
+  /conversations/{conversationId}/photo:
+    parameters:
+      - $ref: "#/components/parameters/ConversationId"
+    put:
+      security:
+        - bearerAuth: []
+      tags: ["groups"]
+      operationId: setGroupPhoto
+      description: "Set or update the photo of a group conversation.This operation is valid only for group conversations."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                photoUrl:
+                  type: string
+                  example: "https://example.com/group-photo.jpg"
+      responses:
+        '200':
+          description: "Group photo updated successfully"
+        '400':
+          description: "Cannot set photo for an individual chat"
+        '404':
+          description: "Conversation not found"
+  /users/:
+    get:
+      security:
+        - bearerAuth: []
+      tags: ["users"]
+      operationId: searchUsers
+      description: "Search for WasaText users. If a name is given in the query, it searches for that specified user; otherwise, it returns all the users in the system."
+      parameters:
+        - name : username # es. /users/?username=mario
+          in: query
+          required: false
+          description: "Name for finding a specified user."
+          schema:
+            type: string
+            example: "mario"
+      responses:
+        '200':
+          description: "List of users"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '404': {description : "no users found"}
+
+  /users/me/name:
+    put:
+      security:
+        - bearerAuth: []
+      tags: ["users"]
+      summary: "Set or update the full name of the current user"
+      description: "This operation allows the current user to set or update their full name."
+      operationId: setMyUserName
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              example: "mario"
+      responses:
+        '200':
+          description: "Full name updated successfully"
+
+  /users/me/photo:
+    put:
+      security:
+        - bearerAuth: []
+      tags: ["users"]
+      summary: "Set or update the photo of the current user"
+      description: "This operation allows the current user to set or update their profile photo."
+      operationId: setMyPhoto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: "Profile photo updated successfully"
+    
+    
+
+
+
+
+
+
