@@ -72,6 +72,11 @@ components:
           type: string
           format: date-time
           example: "2024-11-13T11:40:09Z"
+        status:
+          description: "Status of the message (received, read)"
+          type: string
+          enum: ["received", "read"]
+          example: "read"
     Comment:
       title: Comment
       description: "A comment on a message in a conversation"
@@ -471,11 +476,3 @@ paths:
       responses:
         '200':
           description: "Profile photo updated successfully"
-    
-    
-
-
-
-
-
-
