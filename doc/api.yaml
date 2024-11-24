@@ -3,6 +3,17 @@ info:
   title: WasaText Api
   description: "The api of the messaging website WasaText"
   version: 1.0.0
+tags:
+  - name: login
+    description: "Operations for user authentication."
+  - name: conversations
+    description: "Operations related to conversations."
+  - name: comments
+    description: "Operations for managing comments."
+  - name: groups
+    description: "Operations for managing group chats."
+  - name: users
+    description: "Operations related to user management."
 
 components:
   securitySchemes:
@@ -12,96 +23,121 @@ components:
   schemas:
     User:
       title: User
-      description: "This object represent a single user"
+      description: "This object represents a single user in the system."
       type: object
       properties:
         id:
-          description: "Unique user identifier"
+          description: "Unique user identifier."
           type: integer
           example: 1
           readOnly: true
         username:
-          description: "Name of the user"
+          description: "Name of the user. It should be alphanumeric and can include underscores or hyphens."
           type: string
           example: "mario"
+          minLength: 1
+          maxLength: 255
+          pattern: "^[a-zA-Z0-9_-]+$" 
     Conversation:
       title: Conversation
-      description: "This object represent a conversation between 2 users or a group of users"
+      description: "This object represents a conversation between two users or a group of users."
       type: object
       properties:
         id:
-          description: "Unique conversation identifier"
+          description: "Unique conversation identifier."
           type: integer
           example: 1
           readOnly: true
         type:
-          description: "The type of the conversation (individual chat or group chat)"
+          description: "The type of the conversation: either an individual chat or a group chat."
           type: string
+          minLength: 1
+          maxLength: 255
           enum: ["chat","group"]
           example: "chat"
         participants:
-          description: "The users that take part in the conversation"
+          description: "The users participating in the conversation."
           type: array
+          minItems: 1
+          maxItems: 100
           items:
             $ref: "#/components/schemas/User"
         latestMessage:
-          description: "Last message sent in the conversation. It will be displayed in the conversation preview"
-          type: object
-          $ref: "#/components/schemas/Message"
+          description: "The last message sent in the conversation. It will be displayed in the conversation preview."
+          allOf:
+            - $ref: "#/components/schemas/Message"
     Message:
       title: Message
-      description: "Single message sent in a conversation"
+      description: "A message sent in a conversation."
       type: object
       properties:
         id:
-          description: "Unique message identifier"
+          description: "Unique message identifier."
           type: integer
           example: 1
           readOnly: true
         type:
-          description: "The type of the message (text or media)"
+          description: "The type of the message. It can either be text or media."
           type: string
+          minLength: 1
+          maxLength: 255
           enum: ["text","media"]
-          example: text
+          example: "text"
         sender:
-          description: "The user who sent the message"
-          type: object
-          $ref: "#/components/schemas/User"
+          description: "The user who sent the message."
+          allOf:
+            - $ref: "#/components/schemas/User"
         timestamp:
-          description: "Date and time the message was sent"
+          description: "The date and time when the message was sent."
           type: string
+          minLength: 1
+          maxLength: 255
           format: date-time
           example: "2024-11-13T11:40:09Z"
         status:
-          description: "Status of the message (received, read)"
+          description: "The status of the message, such as 'received' or 'read'."
           type: string
+          minLength: 1
+          maxLength: 255
           enum: ["received", "read"]
           example: "read"
+        content:
+          description: "The text content of the message."
+          type: string
+          minLength: 1
+          maxLength: 255
+          pattern: "^[a-zA-Z0-9\\s\\.,!?;:()_-]*$"
+          example: "This is a message."
     Comment:
       title: Comment
-      description: "A comment on a message in a conversation"
+      description: "A comment on a message in a conversation."
       type: object
       properties:
         id:
-          description: "Unique comment identifier"
+          description: "Unique comment identifier."
           type: integer
           example: 1
           readOnly: true
         messageId:
-          description: "ID of the message being commented on"
+          description: "ID of the message being commented on."
           type: integer
           example: 1
         content:
-          description: "Text content of the comment"
+          description: "Text content of the comment."
           type: string
-          example: "This is a comment"
+          minLength: 1
+          maxLength: 255
+          pattern: "^[a-zA-Z0-9\\s\\.,!?;:()_-]*$"
+          example: "This is a comment."
         sender:
-          description: "User who made the comment"
-          type: object
-          $ref: "#/components/schemas/User"
+          description: "The user who made the comment."
+          allOf:
+            - $ref: "#/components/schemas/User"
         timestamp:
-          description: "Date and time the comment was made"
+          description: "The date and time when the comment was made."
           type: string
+          minLength: 1
+          maxLength: 255
           format: date-time
           example: "2024-11-13T11:45:09Z"
   parameters:
@@ -113,7 +149,7 @@ components:
       name: conversationId
       in: path
       required: true
-      description: "Conversation id"
+      description: "The unique identifier of the conversation."
     MessageId:
       schema:
         type: integer
@@ -122,7 +158,7 @@ components:
       name: messageId
       in: path
       required: true
-      description: "Message id"
+      description: "The unique identifier of the message."
     CommentId:
       schema:
         type: integer
@@ -131,8 +167,9 @@ components:
       name: commentId
       in: path
       required: true
-      description: "Comment ID"
-          
+      description: "The unique identifier of the comment."
+
+
 paths:
   /session:
     post:
@@ -145,6 +182,7 @@ paths:
       operationId: doLogin
       requestBody:
         description: User details
+        required: true
         content:
           application/json:
             schema:
@@ -152,11 +190,10 @@ paths:
               properties:
                 name:
                   type: string
-                  example: Maria
-                  pattern: .*?\$'
+                  example: Mario123
+                  pattern: "^[a-zA-Z0-9]+$"
                   minLength: 3
                   maxLength: 16
-        required: true
       responses:
         '201':
           description: User log-in action successful
@@ -169,7 +206,11 @@ paths:
                     # change here if you decide to use an integer
                     # or any other type of identifier
                     type: string
+                    minLength: 1
+                    maxLength: 255
+                    pattern: "^[a-zA-Z0-9]+$"
                     example: "abcdef012345"
+                    description: "Unique identifier for the user"
 
   /conversations/:
     get:
@@ -185,9 +226,11 @@ paths:
             application/json:
               schema:
                 type: array
+                minItems: 1
+                maxItems: 100
                 items:
                   $ref: '#/components/schemas/Conversation'
-                  
+
   /conversations/{conversationId}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
@@ -204,6 +247,8 @@ paths:
             application/json:
               schema:
                 type: array
+                minItems: 1
+                maxItems: 100
                 items:
                   $ref: "#/components/schemas/Message"
         "404":
@@ -215,6 +260,7 @@ paths:
       operationId: sendMessage
       description: "Send a message in the conversation"
       requestBody:
+        required: true
         content:
           application/json:
             schema: 
@@ -222,7 +268,11 @@ paths:
       responses:
         "201":
           description: "Message sent successfully!"
-        
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
   /conversations/{conversationId}/{messageId}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
@@ -245,7 +295,7 @@ paths:
                   type: integer
                   example: 2
       responses:
-        '201':
+        '204':
           description: "Message forwarded successfully"
         '404':
           description: "Message not found"
@@ -256,7 +306,7 @@ paths:
       operationId: deleteMessage
       description: "Deletes an existing message"
       responses:
-        '200':
+        '204':
           description: "Message deleted successfully"
         '404':
           description: "Message not found"
@@ -278,9 +328,16 @@ paths:
             schema:
               type: string
               example: "this is a comment"
+              pattern: "^.*$"  
+              minLength: 1
+              maxLength: 255 
       responses:
         '201':
           description: "Comment added successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Comment"
         '404':
           description: "Message not found"
 
@@ -297,6 +354,8 @@ paths:
             application/json:
               schema:
                 type: array
+                minItems: 1
+                maxItems: 100
                 items:
                   $ref: "#/components/schemas/Comment"
         '404':
@@ -314,11 +373,11 @@ paths:
       operationId: uncommentMessage
       description: "Remove a specific comment from a message"
       responses:
-        '200':
+        '204':
           description: "Comment deleted successfully"
         '404':
           description: "Comment not found"
-          
+
   /conversations/{conversationId}/participants:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
@@ -339,7 +398,7 @@ paths:
                   type: integer
                   example: 2
       responses:
-        '200':
+        '204':
           description: "User added to group"
         '400':
           description: "Cannot add user to an individual chat"
@@ -353,7 +412,7 @@ paths:
       operationId: leaveGroup
       description: "Leave a group conversation.This operation is valid only for group conversations."
       responses:
-        '200':
+        '204':
           description: "Left the group successfully"
         '400':
           description: "Cannot leave an individual chat"
@@ -378,9 +437,12 @@ paths:
               properties:
                 groupName:
                   type: string
+                  minLength: 1
+                  maxLength: 255
+                  pattern : "^.*$"
                   example: "New Group Name"
       responses:
-        '200':
+        '204':
           description: "Group name updated successfully"
         '400':
           description: "Cannot set name for an individual chat"
@@ -405,14 +467,18 @@ paths:
               properties:
                 photoUrl:
                   type: string
+                  minLength: 1
+                  maxLength: 255
+                  format : url
                   example: "https://example.com/group-photo.jpg"
       responses:
-        '200':
+        '204':
           description: "Group photo updated successfully"
         '400':
           description: "Cannot set photo for an individual chat"
         '404':
           description: "Conversation not found"
+
   /users/:
     get:
       security:
@@ -427,6 +493,9 @@ paths:
           description: "Name for finding a specified user."
           schema:
             type: string
+            minLength: 1
+            maxLength: 255
+            pattern: "^[a-zA-Z0-9_-]+$"
             example: "mario"
       responses:
         '200':
@@ -435,9 +504,12 @@ paths:
             application/json:
               schema:
                 type: array
+                minItems: 1
+                maxItems: 100
                 items:
                   $ref: '#/components/schemas/User'
-        '404': {description : "no users found"}
+        '404': 
+          description : "no users found"
 
   /users/me/name:
     put:
@@ -454,8 +526,11 @@ paths:
             schema:
               type: string
               example: "mario"
+              minLength: 1
+              maxLength: 255
+              pattern: "^[a-zA-Z0-9_-]+$"
       responses:
-        '200':
+        '204':
           description: "Full name updated successfully"
 
   /users/me/photo:
@@ -472,7 +547,11 @@ paths:
           application/json:
             schema:
               type: string
-              format: binary
+              minLength: 1
+              maxLength: 255
+              format: url
+              pattern : "^.*$"
+              example: "https://example.com/profile-photo.jpg"
       responses:
-        '200':
+        '204':
           description: "Profile photo updated successfully"
