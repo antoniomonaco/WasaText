@@ -174,7 +174,7 @@ paths:
   /session:
     post:
       tags: ["login"]
-      summary: Logs in the user
+      summary: "Logs in the user or creates a new one if not existing."
       description: |-
         If the user does not exist, it will be created,
         and an identifier is returned.
@@ -203,8 +203,6 @@ paths:
                 type: object
                 properties:
                   identifier:
-                    # change here if you decide to use an integer
-                    # or any other type of identifier
                     type: string
                     minLength: 1
                     maxLength: 255
@@ -217,8 +215,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["conversations"]
+      summary: "Fetch all conversations the user is part of."
       operationId: getMyConversations
-      description: "Get all my conversations"
+      description: "Get all my conversations."
       responses:
         '200':
           description: "List of conversations"
@@ -238,8 +237,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["conversations"]
+      summary: "Get a specific conversation by its ID."
       operationId: getConversation
-      description: "Get the conversation with the given id"
+      description: "Get the conversation with the given ID."
       responses:
         "200":
           description: "Messages sent in the conversation"
@@ -257,8 +257,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["conversations"]
+      summary: "Send a message to a specific conversation."
       operationId: sendMessage
-      description: "Send a message in the conversation"
+      description: "Send a message in the conversation."
       requestBody:
         required: true
         content:
@@ -281,8 +282,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["conversations"]
+      summary: "Forward a message from one conversation to another."
       operationId: forwardMessage
-      description: "Forward the given message in another conversation"
+      description: "Forward the given message to another conversation."
       requestBody:
         description: "ID of the conversation in which to send the message"
         required: true
@@ -303,8 +305,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["conversations"]
+      summary: "Delete a specific message."
       operationId: deleteMessage
-      description: "Deletes an existing message"
+      description: "Deletes an existing message."
       responses:
         '204':
           description: "Message deleted successfully"
@@ -319,8 +322,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["comments"]
+      summary: "Add a comment to a specific message."
       operationId: commentMessage
-      description: "Add a comment to a specific message in a conversation"
+      description: "Add a comment to a specific message in a conversation."
       requestBody:
         required: true
         content:
@@ -340,13 +344,13 @@ paths:
                 $ref: "#/components/schemas/Comment"
         '404':
           description: "Message not found"
-
     get:
       security:
         - bearerAuth: []
       tags: ["comments"]
+      summary: "Retrieve all comments for a specific message."
       operationId: getComments
-      description: "Get all comments for a specific message"
+      description: "Get all comments for a specific message."
       responses:
         '200':
           description: "List of comments"
@@ -370,8 +374,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["comments"]
+      summary: "Remove a specific comment from a message."
       operationId: uncommentMessage
-      description: "Remove a specific comment from a message"
+      description: "Remove a specific comment from a message."
       responses:
         '204':
           description: "Comment deleted successfully"
@@ -385,8 +390,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["groups"]
+      summary: "Add a user to a group conversation."
       operationId: addToGroup
-      description: "Add a user to a group conversation.This operation is valid only for group conversations."
+      description: "Add a user to a group conversation. This operation is valid only for group conversations."
       requestBody:
         required: true
         content:
@@ -409,8 +415,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["groups"]
+      summary: "Remove the user from a group conversation."
       operationId: leaveGroup
-      description: "Leave a group conversation.This operation is valid only for group conversations."
+      description: "Remove the user from a group conversation. This operation is valid only for group conversations."
       responses:
         '204':
           description: "Left the group successfully"
@@ -426,8 +433,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["groups"]
+      summary: "Set or update the group conversation name."
       operationId: setGroupName
-      description: "Set or update the name of a group conversation.This operation is valid only for group conversations."
+      description: "Set or update the name of a group conversation. This operation is valid only for group conversations."
       requestBody:
         required: true
         content:
@@ -456,8 +464,9 @@ paths:
       security:
         - bearerAuth: []
       tags: ["groups"]
+      summary: "Set or update the group conversation photo."
       operationId: setGroupPhoto
-      description: "Set or update the photo of a group conversation.This operation is valid only for group conversations."
+      description: "Set or update the photo of a group conversation. This operation is valid only for group conversations."
       requestBody:
         required: true
         content:
@@ -484,13 +493,14 @@ paths:
       security:
         - bearerAuth: []
       tags: ["users"]
+      summary: "Search for users in the system."
       operationId: searchUsers
-      description: "Search for WasaText users. If a name is given in the query, it searches for that specified user; otherwise, it returns all the users in the system."
+      description: "Search for users. If a name is provided, it searches for that specific user; otherwise, it returns all users."
       parameters:
         - name : username # es. /users/?username=mario
           in: query
           required: false
-          description: "Name for finding a specified user."
+          description: "Search for a user by name."
           schema:
             type: string
             minLength: 1
@@ -509,7 +519,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/User'
         '404': 
-          description : "no users found"
+          description : "No users found"
 
   /users/me/name:
     put:
@@ -538,7 +548,7 @@ paths:
       security:
         - bearerAuth: []
       tags: ["users"]
-      summary: "Set or update the photo of the current user"
+      summary: "Set or update the profile photo of the current user."
       description: "This operation allows the current user to set or update their profile photo."
       operationId: setMyPhoto
       requestBody:
