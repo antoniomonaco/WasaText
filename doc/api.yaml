@@ -274,7 +274,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Message"
 
-  /conversations/{conversationId}/{messageId}:
+  /conversations/{conversationId}/messages/{messageId}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
       - $ref: "#/components/parameters/MessageId"
@@ -314,7 +314,7 @@ paths:
         '404':
           description: "Message not found"
 
-  /conversations/{conversationId}/{messageId}/comments:
+  /conversations/{conversationId}/messages/{messageId}/comments:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
       - $ref: "#/components/parameters/MessageId"
@@ -365,7 +365,7 @@ paths:
         '404':
           description: "Message not found"
 
-  /conversations/{conversationId}/{messageId}/comments/{commentId}:
+  /conversations/{conversationId}/messages/{messageId}/comments/{commentId}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
       - $ref: "#/components/parameters/MessageId"
