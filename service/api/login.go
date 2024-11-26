@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 
 	"github.com/antoniomonaco/WasaText/service/api/reqcontext"
 	"github.com/julienschmidt/httprouter"
@@ -12,7 +13,7 @@ import (
 // Se l'utente non esiste, viene creato.
 // Restituisce un identificativo univoco per l'utente.
 func (rt *_router) doLoginHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	// Decodifico la richiesta e leggo il nome utente.
+	// Leggo il nome utente.
 	var request struct {
 		Name string `json:"name"`
 	}
@@ -22,21 +23,30 @@ func (rt *_router) doLoginHandler(w http.ResponseWriter, r *http.Request, ps htt
 		return
 	}
 
-	// 2. Verifico se l'utente esiste già
+	pattern := "^[a-zA-Z0-9]{3,16}$"
+	re := regexp.MustCompile(pattern) //regex per il nome utente
+
+	// Controllo che il nome passato rispetta il pattern
+	if !re.MatchString(request.Name) {
+		http.Error(w, "Nome utente non valido", http.StatusBadRequest)
+		return
+	}
+
+	// Verifico se l'utente esiste già
 	userID, err := rt.db.RetrieveUser(request.Name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// 4. Creo la risposta con l'userID come identificativo univoco
+	// Creo la response con l'userID come identificativo univoco
 	response := struct {
 		Identifier int `json:"identifier"`
 	}{
 		Identifier: userID,
 	}
 
-	// 5. Imposto l'header Content-Type e codifico la risposta in JSON.
+	// Imposto l'header Content-Type e codifico la risposta in JSON.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	err = json.NewEncoder(w).Encode(response)
