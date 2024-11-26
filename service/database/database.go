@@ -42,6 +42,7 @@ type AppDatabase interface {
 	SetName(name string) error
 
 	Ping() error
+	RetrieveUser(username string) (int, error)
 }
 
 type appdbimpl struct {
