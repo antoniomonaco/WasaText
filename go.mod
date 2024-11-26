@@ -1,4 +1,6 @@
-module git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated
+module github.com/antoniomonaco/WasaText
+
+// github.com/antoniomonaco/WasaText
 
 go 1.17
 

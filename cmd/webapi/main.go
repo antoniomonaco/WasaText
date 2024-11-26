@@ -28,17 +28,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/api"
-	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/database"
-	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/globaltime"
-	"github.com/ardanlabs/conf"
-	_ "github.com/mattn/go-sqlite3"
-	"github.com/sirupsen/logrus"
 	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/antoniomonaco/WasaText/service/api"
+	"github.com/antoniomonaco/WasaText/service/database"
+	"github.com/antoniomonaco/WasaText/service/globaltime"
+	"github.com/ardanlabs/conf"
+	_ "github.com/mattn/go-sqlite3"
+	"github.com/sirupsen/logrus"
 )
 
 // main is the program entry point. The only purpose of this function is to call run() and set the exit code if there is
@@ -141,6 +142,7 @@ func run() error {
 	// Start the service listening for requests in a separate goroutine
 	go func() {
 		logger.Infof("API listening on %s", apiserver.Addr)
+		logger.Infof("database name %s", cfg.DB.Filename)
 		serverErrors <- apiserver.ListenAndServe()
 		logger.Infof("stopping API server")
 	}()

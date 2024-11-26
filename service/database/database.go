@@ -53,17 +53,47 @@ type appdbimpl struct {
 func New(db *sql.DB) (AppDatabase, error) {
 	if db == nil {
 		return nil, errors.New("database is required when building a AppDatabase")
+
 	}
 
 	// Check if table exists. If not, the database is empty, and we need to create the structure
-	var tableName string
-	err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='example_table';`).Scan(&tableName)
-	if errors.Is(err, sql.ErrNoRows) {
-		sqlStmt := `CREATE TABLE example_table (id INTEGER NOT NULL PRIMARY KEY, name TEXT);`
-		_, err = db.Exec(sqlStmt)
-		if err != nil {
-			return nil, fmt.Errorf("error creating database structure: %w", err)
-		}
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT UNIQUE NOT NULL
+		);
+
+		CREATE TABLE IF NOT EXISTS conversations (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			type TEXT NOT NULL CHECK (type IN ('chat', 'group'))
+		);
+
+		CREATE TABLE IF NOT EXISTS participants (
+			user_id INTEGER REFERENCES users(id),
+			conversation_id INTEGER REFERENCES conversations(id),
+			PRIMARY KEY (user_id, conversation_id)
+		);
+
+		CREATE TABLE IF NOT EXISTS messages (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			conversation_id INTEGER REFERENCES conversations(id),
+			sender_id INTEGER REFERENCES users(id),
+			type TEXT NOT NULL CHECK (type IN ('text', 'media')),
+			timestamp TEXT NOT NULL,
+			status TEXT NOT NULL CHECK (status IN ('received', 'read')),
+			content TEXT
+		);
+
+		CREATE TABLE IF NOT EXISTS comments (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			message_id INTEGER REFERENCES messages(id),
+			sender_id INTEGER REFERENCES users(id),
+			content TEXT NOT NULL,
+			timestamp TEXT NOT NULL
+		);
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("error creating database structure: %w", err)
 	}
 
 	return &appdbimpl{
