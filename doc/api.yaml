@@ -117,7 +117,6 @@ components:
                 minLength: 1
                 maxLength: 255
                 format : url
-                maxLength: 255
                 example: "https://example.com/image.jpg"
     Comment: 
     Comment:
