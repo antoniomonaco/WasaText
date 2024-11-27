@@ -214,11 +214,8 @@ paths:
                 type: object
                 properties:
                   identifier:
-                    type: string
-                    minLength: 1
-                    maxLength: 255
-                    pattern: "^[a-zA-Z0-9]+$"
-                    example: "abcdef012345"
+                    type: int
+                    example: 1
                     description: "Unique identifier for the user"
 
   /conversations/:

@@ -7,9 +7,15 @@ Each value here should be assumed valid only per request only, with some excepti
 package reqcontext
 
 import (
+	"context"
+
 	"github.com/gofrs/uuid"
 	"github.com/sirupsen/logrus"
 )
+
+type KeyType string
+
+const UserIDKey KeyType = "userID"
 
 // RequestContext is the context of the request, for request-dependent parameters
 type RequestContext struct {
@@ -18,4 +24,20 @@ type RequestContext struct {
 
 	// Logger is a custom field logger for the request
 	Logger logrus.FieldLogger
+
+	UserID int
+}
+
+// Serve ad aggiungere l'userID al contesto
+func WithUserID(ctx context.Context, userID int) context.Context {
+	return context.WithValue(ctx, UserIDKey, userID)
+}
+
+// Serve a recuperare l'userID dal contesto
+func UserIDFromContext(ctx context.Context) int {
+	userID, ok := ctx.Value(UserIDKey).(int)
+	if !ok {
+		return 0 // 0 se non l'ha trovato
+	}
+	return userID
 }

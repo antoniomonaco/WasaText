@@ -15,7 +15,8 @@ import (
 // Restituisce una lista di conversazioni.
 func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	// Per ora uso un id di esempio solo per fare test
-	userID := 1 // DEBUG ricordati di cambiarlo
+	// userID := 1 // DEBUG ricordati di cambiarlo
+	userID := reqcontext.UserIDFromContext(r.Context())
 
 	rows, err := rt.db.RetrieveConversations(userID)
 	if err != nil {
@@ -93,7 +94,7 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 			http.Error(w, "Errore durante la lettura dei messaggi", http.StatusInternalServerError)
 			return
 		}
-		t, err := time.Parse(time.RFC3339, timestamp)
+		t, _ := time.Parse(time.RFC3339, timestamp)
 
 		messages = append(messages,
 			Message{
