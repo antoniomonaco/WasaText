@@ -93,7 +93,7 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 			http.Error(w, "Errore durante la lettura dei messaggi", http.StatusInternalServerError)
 			return
 		}
-		t, _ := time.Parse(time.RFC3339, timestamp)
+		t, err := time.Parse(time.RFC3339, timestamp)
 
 		messages = append(messages,
 			Message{
