@@ -101,13 +101,25 @@ components:
           maxLength: 255
           enum: ["received", "read"]
           example: "read"
-        content:
-          description: "The text content of the message."
-          type: string
-          minLength: 1
-          maxLength: 255
-          pattern: "^[a-zA-Z0-9\\s\\.,!?;:()_-]*$"
-          example: "This is a message."
+        oneOf:
+          - properties:
+              content:
+                description: "The text content of the message."
+                type: string
+                minLength: 1
+                maxLength: 255
+                pattern: "^[a-zA-Z0-9\\s\\.,!?;:()_-]*$"
+                example: "This is a message."
+          - properties:
+              media_url:
+                description: "The URL of the media content."
+                type: string
+                minLength: 1
+                maxLength: 255
+                format : url
+                maxLength: 255
+                example: "https://example.com/image.jpg"
+    Comment: 
     Comment:
       title: Comment
       description: "A comment on a message in a conversation."

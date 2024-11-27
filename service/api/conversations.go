@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/antoniomonaco/WasaText/service/api/reqcontext"
 	"github.com/julienschmidt/httprouter"
@@ -62,4 +63,58 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	conversationID, error := strconv.Atoi(ps.ByName("conversationID"))
+	if error != nil {
+		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := rt.db.RetrieveConversation(conversationID)
+	if err != nil {
+		http.Error(w, "Errore durante la lettura della conversazione", http.StatusInternalServerError)
+		return
+	}
+	var messages []Message
+	for rows.Next() {
+		var messageID int
+		var conversationID int
+		var senderID int
+		var messageType string
+		var timestamp string
+		var status string
+		var content string
+		var username string
+
+		err := rows.Scan(&messageID, &conversationID, &senderID, &messageType, &timestamp, &status, &content, &username)
+		if err != nil {
+			http.Error(w, "Errore durante la lettura dei messaggi", http.StatusInternalServerError)
+			return
+		}
+		t, err := time.Parse(time.RFC3339, timestamp)
+
+		messages = append(messages,
+			Message{
+				ID:   messageID,
+				Type: messageType,
+				Sender: User{
+					ID:       senderID,
+					Username: username,
+				},
+				Timestamp: t,
+				Status:    status,
+				Content:   content,
+			})
+
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(messages)
+	if err != nil {
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		return
+	}
+
 }
