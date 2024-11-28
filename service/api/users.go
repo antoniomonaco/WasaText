@@ -11,8 +11,10 @@ import (
 
 func (rt *_router) getUSersHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 
+	IDFromContext := reqcontext.UserIDFromContext(r.Context()) // L'utente non può cercare se stesso, quindi passo l'id alla funzione nel db
+
 	username := r.URL.Query().Get("name") // Se ho passato un nome lo imposta, altrimenti ritorna una stringa vuota
-	rows, err := rt.db.RetrieveUsers(username)
+	rows, err := rt.db.RetrieveUsers(username, IDFromContext)
 	if err != nil {
 		http.Error(w, "Errore durante il recupero degli utenti : 1", http.StatusInternalServerError)
 		return
@@ -34,14 +36,14 @@ func (rt *_router) getUSersHandler(w http.ResponseWriter, r *http.Request, ps ht
 	defer rows.Close()
 
 	if len(users) == 0 {
-		http.Error(w, "Nessun utente trovato", http.StatusNotFound)
+		http.Error(w, "Nessun utente trovato", http.StatusNotFound) // 404
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(users)
 	if err != nil {
-		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError) // 500
 		return
 	}
 }

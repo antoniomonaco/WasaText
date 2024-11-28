@@ -27,19 +27,19 @@ func (db *appdbimpl) Login(username string) (int, error) {
 	return userID, nil
 }
 
-// Login cerca un utente nel database in base al nome utente.
-func (db *appdbimpl) RetrieveUsers(username string) (*sql.Rows, error) {
+// RetrieveUsers cerca un utente nel database in base al nome utente.
+func (db *appdbimpl) RetrieveUsers(username string, IDFromContext int) (*sql.Rows, error) {
 
 	var rows *sql.Rows
 	var err error
 
 	if username != "" {
-		rows, err = db.c.Query("SELECT * FROM users WHERE username = ?", username)
+		rows, err = db.c.Query("SELECT * FROM users WHERE username = ? AND id != ?", username, IDFromContext)
 		if err != nil {
 			return rows, fmt.Errorf("nessun utente trovato con questo nome : %w", err)
 		}
 	} else {
-		rows, err = db.c.Query("SELECT * FROM users")
+		rows, err = db.c.Query("SELECT * FROM users WHERE id != ? ", IDFromContext)
 		if err != nil {
 			return rows, fmt.Errorf("nessun utente trovato : %w", err)
 		}

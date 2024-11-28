@@ -45,7 +45,7 @@ type AppDatabase interface {
 
 	Login(username string) (int, error)
 
-	RetrieveUsers(username string) (*sql.Rows, error)
+	RetrieveUsers(username string, IDFromContext int) (*sql.Rows, error)
 
 	RetrieveConversations(userID int) (*sql.Rows, error)
 	RetrieveConversation(conversationID int, userID int) (*sql.Rows, error)
