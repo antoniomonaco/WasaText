@@ -6,6 +6,7 @@ import "time"
 type User struct {
 	ID       int    `json:"id"`
 	Username string `json:"username"`
+	PhotoUrl string `json:"photoUrl"`
 }
 
 // Conversation between two users or a group of users.
@@ -14,6 +15,8 @@ type Conversation struct {
 	Type          string  `json:"type"` // "chat" o "group"
 	Participants  []User  `json:"participants"`
 	LatestMessage Message `json:"latestMessage"`
+	Name          string  `json:"name"`     // In case of a private chat it will use the name of the other user
+	PhotoUrl      string  `json:"photoUrl"` // In case of a private chat it will use the photo of the other user
 }
 
 // Message in a conversation.

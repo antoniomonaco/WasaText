@@ -38,6 +38,14 @@ components:
           minLength: 1
           maxLength: 255
           pattern: "^[a-zA-Z0-9_-]+$" 
+        photoUrl: 
+          description: "URL of the user's profile photo."
+          type: string
+          format: url
+          minLength: 1
+          maxLength: 255
+          nullable: true
+          example: "https://example.com/profile-photo.jpg"
     Conversation:
       title: Conversation
       description: "This object represents a conversation between two users or a group of users."
@@ -66,6 +74,17 @@ components:
           description: "The last message sent in the conversation. It will be displayed in the conversation preview."
           allOf:
             - $ref: "#/components/schemas/Message"
+        name:  # In case of a private chat it will use the name of the other user
+          description: "Name of the group conversation (optional)."
+          type: string
+          nullable: true
+          example: "Group of Friends"
+        photoUrl:  # In case of a private chat it will use the photo of the other user
+          description: "URL of the group conversation photo (optional)."
+          type: string
+          format: url
+          nullable: true
+          example: "https://example.com/group-photo.jpg"
     Message:
       title: Message
       description: "A message sent in a conversation."
@@ -101,25 +120,24 @@ components:
           maxLength: 255
           enum: ["received", "read"]
           example: "read"
-        oneOf:
-          - properties:
-              content:
-                description: "The text content of the message."
-                type: string
-                minLength: 1
-                maxLength: 255
-                pattern: "^[a-zA-Z0-9\\s\\.,!?;:()_-]*$"
-                example: "This is a message."
-          - properties:
-              media_url:
-                description: "The URL of the media content."
-                type: string
-                minLength: 1
-                maxLength: 255
-                format : url
-                example: "https://example.com/image.jpg"
+      oneOf:
+        - properties:
+            content:
+              description: "The text content of the message."
+              type: string
+              minLength: 1
+              maxLength: 255
+              pattern: "^[a-zA-Z0-9\\s\\.,!?;:()_-]*$"
+              example: "This is a message."
+        - properties:
+            media_url:
+              description: "The URL of the media content."
+              type: string
+              minLength: 1
+              maxLength: 255
+              format : url
+              example: "https://example.com/image.jpg"
     Comment: 
-    Comment:
       title: Comment
       description: "A comment on a message in a conversation."
       type: object
@@ -214,7 +232,7 @@ paths:
                 type: object
                 properties:
                   identifier:
-                    type: int
+                    type: integer
                     example: 1
                     description: "Unique identifier for the user"
 
@@ -237,7 +255,36 @@ paths:
                 maxItems: 100
                 items:
                   $ref: '#/components/schemas/Conversation'
-
+    post:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      summary: "Creates a new conversation."
+      operationId: createConversation
+      description: "Creates a new conversation, either a group or a private chat."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: ["chat", "group"]
+                  example: "group"
+                participants:
+                  type: array
+                  items:
+                    type: integer # User id
+                  example: [1, 2, 3]
+      responses:
+        '201':
+          description: "Conversation created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
   /conversations/{conversationId}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"

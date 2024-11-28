@@ -67,11 +67,14 @@ func New(db *sql.DB) (AppDatabase, error) {
 		CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			username TEXT UNIQUE NOT NULL
+			photoUrl TEXT
 		);
 
 		CREATE TABLE IF NOT EXISTS conversations (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			type TEXT NOT NULL CHECK (type IN ('chat', 'group'))
+			name TEXT,
+			photoUrl TEXT 
 		);
 
 		CREATE TABLE IF NOT EXISTS participants (
