@@ -67,13 +67,14 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID := reqcontext.UserIDFromContext(r.Context())
 	conversationID, error := strconv.Atoi(ps.ByName("conversationID"))
 	if error != nil {
 		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
 		return
 	}
 
-	rows, err := rt.db.RetrieveConversation(conversationID)
+	rows, err := rt.db.RetrieveConversation(conversationID, userID)
 	if err != nil {
 		http.Error(w, "Errore durante la lettura della conversazione", http.StatusInternalServerError)
 		return

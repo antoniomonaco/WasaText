@@ -45,7 +45,7 @@ type AppDatabase interface {
 	RetrieveUser(username string) (int, error)
 
 	RetrieveConversations(userID int) (*sql.Rows, error)
-	RetrieveConversation(conversationID int) (*sql.Rows, error)
+	RetrieveConversation(conversationID int, userID int) (*sql.Rows, error)
 }
 
 type appdbimpl struct {
