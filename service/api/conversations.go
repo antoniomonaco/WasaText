@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -53,9 +54,28 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 			})
 		}
 
+		// Compongo l'anteprima della conversazione
+
+		rows, err := rt.db.RetrieveLatestMessage(conversation.ID, userID)
+		if err != nil {
+			http.Error(w, "Errore durante la lettura dell'anteprima", http.StatusInternalServerError)
+			return
+		}
+		var message Message
+		for rows.Next() {
+			message, err = composeMessage(rows, w)
+			if err != nil {
+				http.Error(w, "Errore durante la composizione dell'anteprima", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		conversation.LatestMessage = message
+
 		conversations = append(conversations, conversation)
 
 		//TODO : Aggiungi il latest message
+
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -80,36 +100,14 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	var messages []Message
-	for rows.Next() {
-		var messageID int
-		var conversationID int
-		var senderID int
-		var messageType string
-		var timestamp string
-		var status string
-		var content string
-		var username string
 
-		err := rows.Scan(&messageID, &conversationID, &senderID, &messageType, &timestamp, &status, &content, &username)
+	for rows.Next() {
+		message, err := composeMessage(rows, w)
 		if err != nil {
 			http.Error(w, "Errore durante la lettura dei messaggi", http.StatusInternalServerError)
 			return
 		}
-		t, _ := time.Parse(time.RFC3339, timestamp)
-
-		messages = append(messages,
-			Message{
-				ID:   messageID,
-				Type: messageType,
-				Sender: User{
-					ID:       senderID,
-					Username: username,
-				},
-				Timestamp: t,
-				Status:    status,
-				Content:   content,
-			})
-
+		messages = append(messages, message)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -119,4 +117,38 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+}
+
+func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
+	var message Message
+
+	var messageID int
+	var conversationID int
+	var senderID int
+	var messageType string
+	var timestamp string
+	var status string
+	var content string
+	var username string
+
+	err := rows.Scan(&messageID, &conversationID, &senderID, &messageType, &timestamp, &status, &content, &username)
+	if err != nil {
+		http.Error(w, "Errore durante la lettura dei messaggi", http.StatusInternalServerError)
+		return message, err
+	}
+	t, _ := time.Parse(time.RFC3339, timestamp)
+
+	message = Message{
+		ID:   messageID,
+		Type: messageType,
+		Sender: User{
+			ID:       senderID,
+			Username: username,
+		},
+		Timestamp: t,
+		Status:    status,
+		Content:   content,
+	}
+
+	return message, nil
 }

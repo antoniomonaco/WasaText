@@ -42,10 +42,12 @@ type AppDatabase interface {
 	SetName(name string) error
 
 	Ping() error
+
 	RetrieveUser(username string) (int, error)
 
 	RetrieveConversations(userID int) (*sql.Rows, error)
 	RetrieveConversation(conversationID int, userID int) (*sql.Rows, error)
+	RetrieveLatestMessage(conversationID int, userID int) (*sql.Rows, error)
 }
 
 type appdbimpl struct {
