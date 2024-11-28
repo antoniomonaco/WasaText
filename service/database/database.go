@@ -43,7 +43,9 @@ type AppDatabase interface {
 
 	Ping() error
 
-	RetrieveUser(username string) (int, error)
+	Login(username string) (int, error)
+
+	RetrieveUsers(username string) (*sql.Rows, error)
 
 	RetrieveConversations(userID int) (*sql.Rows, error)
 	RetrieveConversation(conversationID int, userID int) (*sql.Rows, error)
@@ -66,13 +68,13 @@ func New(db *sql.DB) (AppDatabase, error) {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			username TEXT UNIQUE NOT NULL
+			username TEXT UNIQUE NOT NULL,
 			photoUrl TEXT
 		);
 
 		CREATE TABLE IF NOT EXISTS conversations (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			type TEXT NOT NULL CHECK (type IN ('chat', 'group'))
+			type TEXT NOT NULL CHECK (type IN ('chat', 'group')),
 			name TEXT,
 			photoUrl TEXT 
 		);

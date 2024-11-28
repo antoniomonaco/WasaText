@@ -33,7 +33,7 @@ func (rt *_router) doLoginHandler(w http.ResponseWriter, r *http.Request, ps htt
 	}
 
 	// Verifico se l'utente esiste già
-	userID, err := rt.db.RetrieveUser(request.Name)
+	userID, err := rt.db.Login(request.Name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
