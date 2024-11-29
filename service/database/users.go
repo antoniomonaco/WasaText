@@ -47,3 +47,25 @@ func (db *appdbimpl) RetrieveUsers(username string, IDFromContext int) (*sql.Row
 
 	return rows, nil
 }
+
+func (db *appdbimpl) UpdateUserName(username string, IDFromContext int) error {
+
+	// Controllo se il nome utente esiste già
+	var existingID int
+	err := db.c.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&existingID)
+	if err == nil && existingID != IDFromContext {
+		return fmt.Errorf("il nome utente '%s' è già in uso", username)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("errore durante il controllo del nome utente: %w", err)
+	}
+
+	// Aggiorno il nome utente
+	_, err = db.c.Exec("UPDATE users SET username = ? WHERE id = ?", username, IDFromContext)
+
+	if err != nil {
+		return fmt.Errorf("errore nella modifica del nome : %w", err)
+	}
+
+	return nil
+}

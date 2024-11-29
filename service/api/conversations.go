@@ -74,8 +74,6 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 
 		conversations = append(conversations, conversation)
 
-		//TODO : Aggiungi il latest message
-
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -117,6 +115,18 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+}
+
+func (rt *_router) createConversationHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	var request struct {
+		Type         string `json:"type"` // "chat" o "group"
+		Participants []User `json:"participants"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Errore nella decodifica della richiesta", http.StatusBadRequest)
+		return
+	}
 }
 
 func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
