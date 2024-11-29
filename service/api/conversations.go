@@ -185,7 +185,6 @@ func (rt *_router) createConversationHandler(w http.ResponseWriter, r *http.Requ
 		participants = append(participants, p)
 	}
 
-	// Validazione specifica per "chat"
 	if request.Type == "chat" && len(participants) != 2 {
 		http.Error(w, "Una chat privata deve avere esattamente due partecipanti", http.StatusBadRequest)
 		return
