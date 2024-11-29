@@ -15,8 +15,7 @@ import (
 // getMyConversationsHandler gestisce la richiesta per ottenere tutte le conversazioni dell'utente.
 // Restituisce una lista di conversazioni.
 func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	// Per ora uso un id di esempio solo per fare test
-	// userID := 1 // DEBUG ricordati di cambiarlo
+
 	userID := reqcontext.UserIDFromContext(r.Context())
 
 	rows, err := rt.db.RetrieveConversations(userID)
@@ -32,10 +31,24 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 		var conversation Conversation
 		var participantIDs string
 		var participantUsernames string
-		err := rows.Scan(&conversation.ID, &conversation.Type, &participantIDs, &participantUsernames)
+		var name sql.NullString
+		var photoUrl sql.NullString
+
+		err := rows.Scan(&conversation.ID, &conversation.Type, &participantIDs, &participantUsernames, &name, &photoUrl)
 		if err != nil {
 			http.Error(w, "Errore durante la lettura delle conversazioni", http.StatusInternalServerError)
 			return
+		}
+
+		// Converto i campi da sql.NullString a stringa normale
+		conversation.Name = ""
+		if name.Valid {
+			conversation.Name = name.String
+		}
+
+		conversation.PhotoUrl = ""
+		if photoUrl.Valid {
+			conversation.PhotoUrl = photoUrl.String
 		}
 
 		// Faccio lo split per ottenere la lista con gli id e i nomi dei partecipanti
@@ -118,15 +131,79 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (rt *_router) createConversationHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	IDFromContext := reqcontext.UserIDFromContext(r.Context())
+
+	// Decodifica del payload JSON
 	var request struct {
-		Type         string `json:"type"` // "chat" o "group"
-		Participants []User `json:"participants"`
+		Type         string `json:"type"`         // "chat" o "group"
+		Participants []int  `json:"participants"` // Array di ID utenti
+		Name         string `json:"name"`         // Nome per il gruppo (opzionale)
+		PhotoUrl     string `json:"photoUrl"`     // URL immagine (opzionale)
 	}
 	err := json.NewDecoder(r.Body).Decode(&request)
+
 	if err != nil {
 		http.Error(w, "Errore nella decodifica della richiesta", http.StatusBadRequest)
 		return
 	}
+
+	if request.Type != "chat" && request.Type != "group" {
+		http.Error(w, "Devi scegliere un tipo tra 'chat' o 'group'", http.StatusBadRequest)
+		return
+	}
+
+	if request.Name == "" && request.Type == "group" {
+		http.Error(w, "Devi impostare un nome per il gruppo", http.StatusBadRequest)
+		return
+	}
+
+	if len(request.Participants) == 0 {
+		http.Error(w, "Devi includere almeno un partecipante", http.StatusBadRequest)
+		return
+	}
+
+	if request.Name != "" && request.Type == "chat" {
+		http.Error(w, "Non puoi impostare il nome ad una chat privata", http.StatusBadRequest)
+		return
+	}
+
+	if request.PhotoUrl != "" && request.Type == "chat" {
+		http.Error(w, "Non puoi impostare la foto ad una chat privata", http.StatusBadRequest)
+		return
+	}
+
+	// Mi assicuro che l'utente corrente sia incluso nei partecipanti
+	participantsSet := make(map[int]struct{})
+	for _, p := range request.Participants {
+		participantsSet[p] = struct{}{}
+	}
+	participantsSet[IDFromContext] = struct{}{}
+
+	// Converto il set in una slice
+	participants := make([]int, 0, len(participantsSet))
+	for p := range participantsSet {
+		participants = append(participants, p)
+	}
+
+	// Validazione specifica per "chat"
+	if request.Type == "chat" && len(participants) != 2 {
+		http.Error(w, "Una chat privata deve avere esattamente due partecipanti", http.StatusBadRequest)
+		return
+	}
+
+	// Creazione della conversazione
+	conversationID, err := rt.db.CreateConversation(request.Type, request.Name, request.PhotoUrl, participants)
+	if err != nil {
+		http.Error(w, "Errore durante la creazione della conversazione", http.StatusInternalServerError)
+		return
+	}
+
+	// Risposta 201 Created
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(struct {
+		ConversationID int `json:"conversation_id"`
+	}{ConversationID: conversationID})
 }
 
 func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {

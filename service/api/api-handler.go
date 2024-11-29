@@ -13,6 +13,7 @@ func (rt *_router) Handler() http.Handler {
 	rt.router.GET("/users/", rt.authMiddleware(rt.wrap(rt.getUSersHandler)))
 	rt.router.PUT("/users/me/name", rt.authMiddleware(rt.wrap(rt.setMyUserName)))
 	rt.router.GET("/conversations/", rt.authMiddleware(rt.wrap(rt.getMyConversationsHandler)))
+	rt.router.POST("/conversations/", rt.authMiddleware(rt.wrap(rt.createConversationHandler)))
 	rt.router.GET("/conversations/:conversationID", rt.authMiddleware(rt.wrap(rt.getConversationHandler)))
 
 	// Special routes
