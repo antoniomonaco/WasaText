@@ -12,6 +12,8 @@ func (db *appdbimpl) CreateConversation(conversationType, name, photoUrl string,
 		return 0, fmt.Errorf("errore durante l'avvio della transazione: %w", err)
 	}
 
+	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
+
 	defer func() {
 		if p := recover(); p != nil {
 			tx.Rollback()
