@@ -85,6 +85,29 @@ func (rt *_router) setMyUserName(w http.ResponseWriter, r *http.Request, ps http
 
 }
 
+func (rt *_router) setMyPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	IDFromContext := reqcontext.UserIDFromContext(r.Context())
+
+	var request struct {
+		PhotoUrl string `json:"photoUrl"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Errore nella decodifica della richiesta", http.StatusBadRequest)
+		return
+	}
+
+	err = rt.db.SetUserPhoto(request.PhotoUrl, IDFromContext)
+
+	if err != nil {
+		http.Error(w, "Impossibile impostare la foto profilo", http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent) // 204
+
+}
+
 func composeUser(userID int, username string, photoUrl string) User {
 	user := User{
 		ID:       userID,

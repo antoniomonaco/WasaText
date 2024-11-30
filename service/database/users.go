@@ -69,3 +69,14 @@ func (db *appdbimpl) UpdateUserName(username string, IDFromContext int) error {
 
 	return nil
 }
+
+func (db *appdbimpl) SetUserPhoto(PhotoUrl string, IDFromContext int) error {
+
+	_, err := db.c.Exec("UPDATE users SET photoUrl = ? WHERE id = ?", PhotoUrl, IDFromContext)
+
+	if err != nil {
+		return fmt.Errorf("errore nella modifica del nome : %w", err)
+	}
+
+	return nil
+}

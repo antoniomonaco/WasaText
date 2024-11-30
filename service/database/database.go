@@ -47,6 +47,7 @@ type AppDatabase interface {
 
 	RetrieveUsers(username string, IDFromContext int) (*sql.Rows, error)
 	UpdateUserName(username string, IDFromContext int) error
+	SetUserPhoto(photoUrl string, IDFromContext int) error
 
 	CreateConversation(conversationType, name, photoUrl string, participants []int) (int, error)
 	RetrieveConversations(userID int) (*sql.Rows, error)
