@@ -280,6 +280,51 @@ func (rt *_router) sendMessageHandler(w http.ResponseWriter, r *http.Request, ps
 	}
 }
 
+func (rt *_router) deleteMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	IDFromContext := reqcontext.UserIDFromContext(r.Context())
+
+	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
+	if err != nil {
+		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
+		return
+	}
+	messageID, err := strconv.Atoi(ps.ByName("messageID"))
+	if err != nil {
+		http.Error(w, "ID messaggio non valido", http.StatusBadRequest)
+		return
+	}
+
+	// Verifico che l'utente sia un partecipante della conversazione.
+	isParticipant, err := rt.db.IsUserParticipantOfConversation(conversationID, IDFromContext)
+	if err != nil {
+		http.Error(w, "Errore durante la verifica dei partecipanti", http.StatusInternalServerError)
+		return
+	}
+	if !isParticipant {
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		return
+	}
+
+	isSender, err := rt.db.IsUserSenderOfMessage(messageID, IDFromContext)
+	if err != nil {
+		http.Error(w, "Errore durante la verifica del mittente", http.StatusInternalServerError)
+		return
+	}
+	if !isSender {
+		http.Error(w, "Operazione non consentita su questo messaggio", http.StatusForbidden)
+		return
+	}
+
+	err = rt.db.DeleteMessage(conversationID, messageID)
+	if err != nil {
+		http.Error(w, "Messaggio inesistente", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent) //204
+}
+
 func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
 	var message Message
 

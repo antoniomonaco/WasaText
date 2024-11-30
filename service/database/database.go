@@ -56,7 +56,9 @@ type AppDatabase interface {
 	RetrieveConversation(conversationID int, userID int) (*sql.Rows, error)
 	RetrieveLatestMessage(conversationID int, userID int) (*sql.Rows, error)
 	IsUserParticipantOfConversation(conversationID int, userID int) (bool, error)
+	IsUserSenderOfMessage(conversationID int, userID int) (bool, error)
 	SendMessage(conversationID int, IDFromContext int, messageType string, timestamp time.Time, status string, content string) (int, error)
+	DeleteMessage(conversationID int, messageID int) error
 }
 
 type appdbimpl struct {

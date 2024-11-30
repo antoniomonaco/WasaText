@@ -151,6 +151,36 @@ func (db *appdbimpl) SendMessage(conversationID int, senderID int, messageType s
 	return messageID, nil
 }
 
+func (db *appdbimpl) DeleteMessage(conversationID int, messageID int) error {
+	// Avvia una transazione
+	tx, err := db.c.Begin()
+	if err != nil {
+		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
+	}
+
+	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	_, err = db.c.Exec("DELETE FROM messages WHERE conversation_id = ? AND id = ?",
+		conversationID, messageID)
+	if err != nil {
+		return fmt.Errorf("errore durante l'eliminazione del messaggio: %w", err)
+	}
+
+	return nil
+
+}
+
 // Serve per verificare che l'utente faccia effettivamente parte della conversazione in modo che possa effettuare
 // delle operazioni su di essa
 func (db *appdbimpl) IsUserParticipantOfConversation(conversationID int, userID int) (bool, error) {
@@ -162,6 +192,21 @@ func (db *appdbimpl) IsUserParticipantOfConversation(conversationID int, userID 
 		conversationID, userID).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("errore durante la verifica della partecipazione: %w", err)
+	}
+	return count > 0, nil
+}
+
+// Serve per verificare che l'utente sia il mittente del messaggiio in modo che possa effettuare
+// delle operazioni su di esso
+func (db *appdbimpl) IsUserSenderOfMessage(messageID int, senderID int) (bool, error) {
+	var count int
+	err := db.c.QueryRow(`
+        SELECT COUNT(*) 
+        FROM messages 
+        WHERE id = ? AND sender_id = ?`,
+		messageID, senderID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("errore durante la verifica del mittente: %w", err)
 	}
 	return count > 0, nil
 }

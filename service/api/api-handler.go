@@ -23,6 +23,7 @@ func (rt *_router) Handler() http.Handler {
 	rt.router.POST("/conversations/", rt.authMiddleware(rt.wrap(rt.createConversationHandler)))
 	rt.router.GET("/conversations/:conversationID", rt.authMiddleware(rt.wrap(rt.getConversationHandler)))
 	rt.router.POST("/conversations/:conversationID", rt.authMiddleware(rt.wrap(rt.sendMessageHandler)))
+	rt.router.DELETE("/conversations/:conversationID/messages/:messageID", rt.authMiddleware(rt.wrap(rt.deleteMessageHandler)))
 
 	// Special routes
 	rt.router.GET("/liveness", rt.liveness)
