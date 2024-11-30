@@ -48,6 +48,20 @@ func (db *appdbimpl) RetrieveUsers(username string, IDFromContext int) (*sql.Row
 	return rows, nil
 }
 
+func (db *appdbimpl) RetrieveUserFromID(userID int) (*sql.Rows, error) {
+
+	var rows *sql.Rows
+	var err error
+
+	rows, err = db.c.Query("SELECT u.username, u.photoUrl FROM users u WHERE id = ?", userID)
+
+	if err != nil {
+		return rows, fmt.Errorf("nessun utente trovato : %w", err)
+	}
+
+	return rows, nil
+}
+
 func (db *appdbimpl) UpdateUserName(username string, IDFromContext int) error {
 
 	// Controllo se il nome utente esiste già

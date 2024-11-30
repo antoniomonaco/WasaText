@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"github.com/antoniomonaco/WasaText/service/api/reqcontext"
+	"github.com/antoniomonaco/WasaText/service/database"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -116,4 +117,26 @@ func composeUser(userID int, username string, photoUrl string) User {
 	}
 
 	return user
+}
+
+func composeUserFromID(userID int, db database.AppDatabase) (User, error) {
+
+	var username string
+	var photoUrl string
+	var user User
+
+	rows, err := db.RetrieveUserFromID(userID)
+	if err != nil {
+
+		return user, fmt.Errorf("impossibile trovare l'utente: %w", err)
+	}
+
+	rows.Scan(&username, &photoUrl)
+	user = User{
+		ID:       userID,
+		Username: username,
+		PhotoUrl: photoUrl,
+	}
+
+	return user, nil
 }

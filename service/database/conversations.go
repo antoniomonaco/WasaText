@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 func (db *appdbimpl) CreateConversation(conversationType, name, photoUrl string, participants []int) (int, error) {
@@ -27,7 +28,6 @@ func (db *appdbimpl) CreateConversation(conversationType, name, photoUrl string,
 
 	// Inserisco la conversazione
 	var conversationID int
-	fmt.Printf("Inserting conversation: type=%s, name=%s, photoUrl=%s\n", conversationType, name, photoUrl)
 
 	err = tx.QueryRow(
 		"INSERT INTO conversations (type, name, photoUrl) VALUES (?, ?, ?) RETURNING id",
@@ -117,4 +117,51 @@ func (db *appdbimpl) RetrieveLatestMessage(conversationID int, userID int) (*sql
 		return nil, fmt.Errorf("errore durante il recupero dell'anteprima: %w", err)
 	}
 	return rows, nil
+}
+
+func (db *appdbimpl) SendMessage(conversationID int, senderID int, messageType string, timestamp time.Time, status string, content string) (int, error) {
+	// Avvia una transazione
+	tx, err := db.c.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("errore durante l'avvio della transazione: %w", err)
+	}
+
+	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	// Inserisco il messaggio nella converszione
+	var messageID int
+	err = tx.QueryRow(
+		"INSERT INTO messages (conversation_id, sender_id, type, timestamp, status, content) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+		conversationID, senderID, messageType, timestamp, status, content).Scan(&messageID)
+	if err != nil {
+		return 0, fmt.Errorf("errore durante l'inserimento del messaggio: %w", err)
+	}
+
+	return messageID, nil
+}
+
+// Serve per verificare che l'utente faccia effettivamente parte della conversazione in modo che possa effettuare
+// delle operazioni su di essa
+func (db *appdbimpl) IsUserParticipantOfConversation(conversationID int, userID int) (bool, error) {
+	var count int
+	err := db.c.QueryRow(`
+        SELECT COUNT(*) 
+        FROM participants 
+        WHERE conversation_id = ? AND user_id = ?`,
+		conversationID, userID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("errore durante la verifica della partecipazione: %w", err)
+	}
+	return count > 0, nil
 }

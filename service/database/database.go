@@ -34,6 +34,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // AppDatabase is the high level interface for the DB
@@ -46,6 +47,7 @@ type AppDatabase interface {
 	Login(username string) (int, error)
 
 	RetrieveUsers(username string, IDFromContext int) (*sql.Rows, error)
+	RetrieveUserFromID(userID int) (*sql.Rows, error)
 	UpdateUserName(username string, IDFromContext int) error
 	SetUserPhoto(photoUrl string, IDFromContext int) error
 
@@ -53,6 +55,8 @@ type AppDatabase interface {
 	RetrieveConversations(userID int) (*sql.Rows, error)
 	RetrieveConversation(conversationID int, userID int) (*sql.Rows, error)
 	RetrieveLatestMessage(conversationID int, userID int) (*sql.Rows, error)
+	IsUserParticipantOfConversation(conversationID int, userID int) (bool, error)
+	SendMessage(conversationID int, IDFromContext int, messageType string, timestamp time.Time, status string, content string) (int, error)
 }
 
 type appdbimpl struct {

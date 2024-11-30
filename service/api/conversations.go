@@ -55,9 +55,6 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 		participantIDStrs := strings.Split(participantIDs, ",")
 		participantUsernameStrs := strings.Split(participantUsernames, ",")
 
-		//fmt.Fprintf(w, "Il valore di participantIDStrs è %s", participantIDStrs) //DEBUG
-		//fmt.Fprintf(w, "Il valore di participantUsernameStrs è %s", participantUsernameStrs) //DEBUG
-
 		//Itero sugli id per creare gli oggetti user
 		for i, idStr := range participantIDStrs {
 			id, _ := strconv.Atoi(idStr)
@@ -203,6 +200,84 @@ func (rt *_router) createConversationHandler(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(struct {
 		ConversationID int `json:"conversation_id"`
 	}{ConversationID: conversationID})
+}
+
+func (rt *_router) sendMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	IDFromContext := reqcontext.UserIDFromContext(r.Context())
+
+	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
+	if err != nil {
+		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
+		return
+	}
+
+	// Verifico che l'utente sia un partecipante della conversazione.
+	isParticipant, err := rt.db.IsUserParticipantOfConversation(conversationID, IDFromContext)
+	if err != nil {
+		http.Error(w, "Errore durante la verifica dei partecipanti", http.StatusInternalServerError)
+		return
+	}
+	if !isParticipant {
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		return
+	}
+
+	var request struct {
+		Type    string `json:"type"` // "media" o "text"
+		Content string `json:"content"`
+	}
+
+	err = json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Errore nella decodifica del messaggio", http.StatusBadRequest)
+		return
+	}
+
+	if request.Type != "media" && request.Type != "text" {
+		http.Error(w, "Il messaggio deve essere di tipo 'text' o 'media' ", http.StatusBadRequest)
+		return
+	}
+
+	/*
+		TODO: aggiungi la verifica dell'url dell'immagine ES:
+
+		if request.Type == "media" {
+			if !isValidURL(request.Content) {
+				http.Error(w, "Il contenuto deve essere un URL valido per il tipo 'media'", http.StatusBadRequest)
+				return
+			}
+	*/
+
+	timestamp := time.Now()
+	messageStatus := "received"
+	messageID, err := rt.db.SendMessage(conversationID, IDFromContext, request.Type, timestamp, messageStatus, request.Content)
+	if err != nil {
+		http.Error(w, "Errore durante l'invio del messaggio", http.StatusInternalServerError)
+		return
+	}
+
+	user, err := composeUserFromID(IDFromContext, rt.db)
+	if err != nil {
+		http.Error(w, "Errore durante la composizione dell'utente", http.StatusInternalServerError)
+		return
+	}
+
+	message := Message{
+		ID:        messageID,
+		Type:      request.Type,
+		Sender:    user,
+		Timestamp: timestamp,
+		Status:    messageStatus,
+		Content:   request.Content,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	err = json.NewEncoder(w).Encode(message)
+	if err != nil {
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		return
+	}
 }
 
 func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
