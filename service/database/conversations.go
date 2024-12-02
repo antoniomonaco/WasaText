@@ -127,28 +127,31 @@ func (db *appdbimpl) SendMessage(conversationID int, senderID int, messageType s
 	}
 
 	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
-
 	defer func() {
 		if p := recover(); p != nil {
 			tx.Rollback()
 			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
+		} else if commitErr := tx.Commit(); commitErr != nil {
+			fmt.Println("Errore nel commit:", commitErr)
 		}
+
 	}()
 
 	// Inserisco il messaggio nella converszione
-	var messageID int
-	err = tx.QueryRow(
-		"INSERT INTO messages (conversation_id, sender_id, type, timestamp, status, content) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
-		conversationID, senderID, messageType, timestamp, status, content).Scan(&messageID)
+	var messageID int64
+	result, err := tx.Exec(
+		"INSERT INTO messages (conversation_id, sender_id, type, timestamp, status, content) VALUES (?, ?, ?, ?, ?, ?)",
+		conversationID, senderID, messageType, timestamp, status, content,
+	)
 	if err != nil {
 		return 0, fmt.Errorf("errore durante l'inserimento del messaggio: %w", err)
 	}
+	messageID, err = result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("errore durante il recupero dell'ID del messaggio: %w", err)
+	}
 
-	return messageID, nil
+	return int(messageID), nil
 }
 
 func (db *appdbimpl) DeleteMessage(conversationID int, messageID int) error {
@@ -179,6 +182,19 @@ func (db *appdbimpl) DeleteMessage(conversationID int, messageID int) error {
 
 	return nil
 
+}
+
+func (db *appdbimpl) GetMessage(conversationID int, messageID int) (*sql.Rows, error) {
+	rows, err := db.c.Query(`
+	SELECT m.*,u.username
+	FROM messages m, users u
+	WHERE m.conversation_id = ? AND m.id = ? AND u.id = m.sender_id
+`, conversationID, messageID)
+
+	if err != nil {
+		return rows, fmt.Errorf("errore durante il recupero del messaggio : %w", err)
+	}
+	return rows, nil
 }
 
 // Serve per verificare che l'utente faccia effettivamente parte della conversazione in modo che possa effettuare

@@ -59,6 +59,7 @@ type AppDatabase interface {
 	IsUserSenderOfMessage(conversationID int, userID int) (bool, error)
 	SendMessage(conversationID int, IDFromContext int, messageType string, timestamp time.Time, status string, content string) (int, error)
 	DeleteMessage(conversationID int, messageID int) error
+	GetMessage(conversationID int, messageID int) (*sql.Rows, error)
 }
 
 type appdbimpl struct {

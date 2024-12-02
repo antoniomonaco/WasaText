@@ -53,7 +53,7 @@ func (db *appdbimpl) RetrieveUserFromID(userID int) (*sql.Rows, error) {
 	var rows *sql.Rows
 	var err error
 
-	rows, err = db.c.Query("SELECT u.username, u.photoUrl FROM users u WHERE id = ?", userID)
+	rows, err = db.c.Query("SELECT username, photoUrl FROM users WHERE id = ?", userID)
 
 	if err != nil {
 		return rows, fmt.Errorf("nessun utente trovato : %w", err)

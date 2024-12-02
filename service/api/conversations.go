@@ -272,7 +272,7 @@ func (rt *_router) sendMessageHandler(w http.ResponseWriter, r *http.Request, ps
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusCreated) // 201
 	err = json.NewEncoder(w).Encode(message)
 	if err != nil {
 		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
@@ -323,6 +323,91 @@ func (rt *_router) deleteMessageHandler(w http.ResponseWriter, r *http.Request, 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent) //204
+}
+
+func (rt *_router) forwardMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	IDFromContext := reqcontext.UserIDFromContext(r.Context())
+	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
+	if err != nil {
+		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
+		return
+	}
+	// Verifico che l'utente sia un partecipante della conversazione.
+	isParticipant, err := rt.db.IsUserParticipantOfConversation(conversationID, IDFromContext)
+	if err != nil {
+		http.Error(w, "Errore durante la verifica dei partecipanti", http.StatusInternalServerError)
+		return
+	}
+	if !isParticipant {
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		return
+	}
+	messageID, err := strconv.Atoi(ps.ByName("messageID"))
+	if err != nil {
+		http.Error(w, "ID messaggio non valido", http.StatusBadRequest)
+		return
+	}
+	var request struct {
+		TargetConversationID int `json:"id"`
+	}
+	err = json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
+		return
+	}
+	// Verifico che l'utente sia un partecipante della conversazione.
+	isParticipant, err = rt.db.IsUserParticipantOfConversation(request.TargetConversationID, IDFromContext)
+	if err != nil {
+		http.Error(w, "Errore durante la verifica dei partecipanti", http.StatusInternalServerError)
+		return
+	}
+	if !isParticipant {
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		return
+	}
+	rows, err := rt.db.GetMessage(conversationID, messageID)
+	if err != nil {
+		http.Error(w, "Messaggio non trovato", http.StatusNotFound)
+		return
+	}
+	var message Message
+	for rows.Next() {
+		message, err = composeMessage(rows, w)
+		if err != nil {
+			http.Error(w, "Errore durante la composizione del messaggio", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err != nil {
+		http.Error(w, "Errore nella composizione del messaggio", http.StatusInternalServerError)
+		return
+	}
+	message.Timestamp = time.Now()
+	message.Status = "received"
+	newMessageID, err := rt.db.SendMessage(request.TargetConversationID, IDFromContext, message.Type, message.Timestamp, message.Status, message.Content)
+	if err != nil {
+		http.Error(w, "Errore nell'invio del messaggio", http.StatusInternalServerError)
+		return
+	}
+
+	// Imposto i nuovi valori nel messaggio per poterlo restituire
+
+	message.ID = newMessageID
+	newSender, err := composeUserFromID(IDFromContext, rt.db)
+	if err != nil {
+		http.Error(w, "Errore nella creazione dell'utente", http.StatusInternalServerError)
+		return
+	}
+	message.Sender = newSender
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated) // 201
+	err = json.NewEncoder(w).Encode(message)
+	if err != nil {
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		return
+	}
 }
 
 func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
