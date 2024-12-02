@@ -47,7 +47,7 @@ type AppDatabase interface {
 	Login(username string) (int, error)
 
 	RetrieveUsers(username string, IDFromContext int) (*sql.Rows, error)
-	RetrieveUserFromID(userID int) (*sql.Rows, error)
+	RetrieveUserFromID(userID int) (*sql.Row, error)
 	UpdateUserName(username string, IDFromContext int) error
 	SetUserPhoto(photoUrl string, IDFromContext int) error
 

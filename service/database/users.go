@@ -48,18 +48,11 @@ func (db *appdbimpl) RetrieveUsers(username string, IDFromContext int) (*sql.Row
 	return rows, nil
 }
 
-func (db *appdbimpl) RetrieveUserFromID(userID int) (*sql.Rows, error) {
+func (db *appdbimpl) RetrieveUserFromID(userID int) (*sql.Row, error) {
 
-	var rows *sql.Rows
-	var err error
+	row := db.c.QueryRow("SELECT username, photoUrl FROM users WHERE id = ?", userID)
 
-	rows, err = db.c.Query("SELECT username, photoUrl FROM users WHERE id = ?", userID)
-
-	if err != nil {
-		return rows, fmt.Errorf("nessun utente trovato : %w", err)
-	}
-
-	return rows, nil
+	return row, nil
 }
 
 func (db *appdbimpl) UpdateUserName(username string, IDFromContext int) error {

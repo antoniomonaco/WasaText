@@ -125,25 +125,23 @@ func composeUserFromID(userID int, db database.AppDatabase) (User, error) {
 	var photoUrl sql.NullString
 	var user User
 
-	rows, err := db.RetrieveUserFromID(userID)
+	row, err := db.RetrieveUserFromID(userID)
 	if err != nil {
 
 		return user, fmt.Errorf("impossibile trovare l'utente: %w", err)
 	}
 
-	if rows.Next() {
-		rows.Scan(&username, &photoUrl)
-		if photoUrl.Valid {
-			user.ID = userID
-			user.Username = username
-			user.PhotoUrl = photoUrl.String
-		} else {
-			user.ID = userID
-			user.Username = username
-			user.PhotoUrl = ""
-		}
+	row.Scan(&username, &photoUrl)
+	if photoUrl.Valid {
+		user.ID = userID
+		user.Username = username
+		user.PhotoUrl = photoUrl.String
+	} else {
+		user.ID = userID
+		user.Username = username
+		user.PhotoUrl = ""
+
 	}
-	defer rows.Close()
 
 	return user, nil
 }
