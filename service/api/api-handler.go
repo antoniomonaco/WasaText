@@ -26,6 +26,17 @@ func (rt *_router) Handler() http.Handler {
 	rt.router.DELETE("/conversations/:conversationID/messages/:messageID", rt.authMiddleware(rt.wrap(rt.deleteMessageHandler)))
 	rt.router.POST("/conversations/:conversationID/messages/:messageID", rt.authMiddleware(rt.wrap(rt.forwardMessageHandler)))
 
+	// Group
+	rt.router.POST("/conversations/:conversationID/participants", rt.authMiddleware(rt.wrap(rt.addToGroupHandler)))
+	rt.router.DELETE("/conversations/:conversationID/participants", rt.authMiddleware(rt.wrap(rt.leaveGroupHandler)))
+	rt.router.PUT("/conversations/:conversationID/name", rt.authMiddleware(rt.wrap(rt.setGroupNameHandler)))
+	rt.router.PUT("/conversations/:conversationID/photo", rt.authMiddleware(rt.wrap(rt.setGroupPhotoHandler)))
+
+	// Comments
+	rt.router.POST("/conversations/:conversationID/messages/:messageID/comments", rt.authMiddleware(rt.wrap(rt.commentMessageHandler)))
+	rt.router.GET("/conversations/:conversationID/messages/:messageID/comments", rt.authMiddleware(rt.wrap(rt.getCommentsHandler)))
+	rt.router.DELETE("/conversations/:conversationID/messages/:messageID/comments/:commentID", rt.authMiddleware(rt.wrap(rt.uncommentMessageHandler)))
+
 	// Special routes
 	rt.router.GET("/liveness", rt.liveness)
 

@@ -60,6 +60,15 @@ type AppDatabase interface {
 	SendMessage(conversationID int, IDFromContext int, messageType string, timestamp time.Time, status string, content string) (int, error)
 	DeleteMessage(conversationID int, messageID int) error
 	GetMessage(conversationID int, messageID int) (*sql.Rows, error)
+	IsGroup(conversationID int) (bool, error)
+	AddParticipant(conversationID int, UserID int) error
+	RemoveParticipant(conversationID int, UserID int) error
+	UpdateGroupName(GroupName string, conversationID int) error
+	UpdateGroupPhoto(PhotoUrl string, conversationID int) error
+
+	AddComment(messageID int, userID int, content string, timestamp time.Time) (int, error)
+	GetComments(messageID int) (*sql.Rows, error)
+	DeleteComment(messageID int, commentID int, userID int) error
 }
 
 type appdbimpl struct {

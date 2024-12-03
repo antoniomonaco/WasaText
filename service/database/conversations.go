@@ -226,3 +226,94 @@ func (db *appdbimpl) IsUserSenderOfMessage(messageID int, senderID int) (bool, e
 	}
 	return count > 0, nil
 }
+
+func (db *appdbimpl) IsGroup(conversationID int) (bool, error) {
+	var count int
+	err := db.c.QueryRow(`
+        SELECT COUNT(*) 
+        FROM conversations 
+        WHERE id = ? AND type = "group"`,
+		conversationID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("errore durante la verifica della conversazione: %w", err)
+	}
+	return count > 0, nil
+}
+
+func (db *appdbimpl) AddParticipant(conversationID int, UserID int) error {
+	// Avvia una transazione
+	tx, err := db.c.Begin()
+	if err != nil {
+		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
+	}
+
+	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	_, err = db.c.Exec("INSERT INTO participants (user_id, conversation_id) VALUES (?, ?);",
+		UserID, conversationID)
+	if err != nil {
+		return fmt.Errorf("errore durante l'aggiunta del utente al gruppo: %w", err)
+	}
+
+	return nil
+}
+
+func (db *appdbimpl) RemoveParticipant(conversationID int, UserID int) error {
+	// Avvia una transazione
+	tx, err := db.c.Begin()
+	if err != nil {
+		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
+	}
+
+	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
+
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p)
+		} else if err != nil {
+			tx.Rollback()
+		} else {
+			tx.Commit()
+		}
+	}()
+
+	_, err = db.c.Exec("DELETE FROM participants WHERE conversation_id = ? AND user_id = ?",
+		conversationID, UserID)
+	if err != nil {
+		return fmt.Errorf("errore durante l'aggiunta del utente al gruppo: %w", err)
+	}
+
+	return nil
+}
+
+func (db *appdbimpl) UpdateGroupName(GroupName string, conversationID int) error {
+	_, err := db.c.Exec("UPDATE conversations SET name = ? WHERE id = ?", GroupName, conversationID)
+
+	if err != nil {
+		return fmt.Errorf("errore nella modifica del nome : %w", err)
+	}
+
+	return nil
+}
+
+func (db *appdbimpl) UpdateGroupPhoto(PhotoUrl string, conversationID int) error {
+	_, err := db.c.Exec("UPDATE conversations SET photoUrl = ? WHERE id = ?", PhotoUrl, conversationID)
+
+	if err != nil {
+		return fmt.Errorf("errore nella modifica della foto profilo : %w", err)
+	}
+
+	return nil
+}
