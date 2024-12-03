@@ -28,7 +28,7 @@ func (rt *_router) doLoginHandler(w http.ResponseWriter, r *http.Request, ps htt
 
 	// Controllo che il nome passato rispetta il pattern
 	if !re.MatchString(request.Name) {
-		http.Error(w, "Nome utente non valido", http.StatusBadRequest)
+		http.Error(w, "Nome utente non valido", http.StatusBadRequest) // 400
 		return
 	}
 
@@ -48,7 +48,7 @@ func (rt *_router) doLoginHandler(w http.ResponseWriter, r *http.Request, ps htt
 
 	// Imposto l'header Content-Type e codifico la risposta in JSON.
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusCreated) // 201
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)

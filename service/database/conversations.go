@@ -93,6 +93,7 @@ func (db *appdbimpl) RetrieveConversation(conversationID int, userID int) (*sql.
 	if err != nil {
 		return nil, fmt.Errorf("errore durante il recupero dei messaggi: %w", err)
 	}
+
 	return rows, nil
 }
 

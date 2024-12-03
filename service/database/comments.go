@@ -35,7 +35,6 @@ func (db *appdbimpl) GetComments(messageID int) (*sql.Rows, error) {
 }
 
 func (db *appdbimpl) DeleteComment(messageID int, commentID int, userID int) error {
-	// Inizio della transazione
 	tx, err := db.c.Begin()
 	if err != nil {
 		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
@@ -66,7 +65,6 @@ func (db *appdbimpl) DeleteComment(messageID int, commentID int, userID int) err
 		return fmt.Errorf("commento non trovato o non autorizzato")
 	}
 
-	// Eliminazione del commento
 	_, err = tx.Exec(
 		"DELETE FROM comments WHERE id = ? AND message_id = ? AND sender_id = ?",
 		commentID, messageID, userID,

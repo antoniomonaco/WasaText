@@ -118,6 +118,10 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 		messages = append(messages, message)
 	}
 
+	if messages == nil {
+		http.Error(w, "Conversazione non trovata", http.StatusNotFound)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(messages)
 	if err != nil {
@@ -311,13 +315,13 @@ func (rt *_router) deleteMessageHandler(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	if !isSender {
-		http.Error(w, "Operazione non consentita su questo messaggio", http.StatusForbidden)
+		http.Error(w, "Operazione non consentita su questo messaggio", http.StatusForbidden) // 403
 		return
 	}
 
 	err = rt.db.DeleteMessage(conversationID, messageID)
 	if err != nil {
-		http.Error(w, "Messaggio inesistente", http.StatusNotFound)
+		http.Error(w, "Messaggio inesistente", http.StatusNotFound) // 404
 		return
 	}
 
@@ -362,12 +366,12 @@ func (rt *_router) forwardMessageHandler(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	if !isParticipant {
-		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden) // 403
 		return
 	}
 	rows, err := rt.db.GetMessage(conversationID, messageID)
 	if err != nil {
-		http.Error(w, "Messaggio non trovato", http.StatusNotFound)
+		http.Error(w, "Messaggio non trovato", http.StatusNotFound) // 404
 		return
 	}
 	var message Message
