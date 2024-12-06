@@ -10,7 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func (rt *_router) commentMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) commentMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 
 	conversationID, _ := strconv.Atoi(ps.ByName("conversationID"))
 	messageID, _ := strconv.Atoi(ps.ByName("messageID"))
@@ -22,7 +22,7 @@ func (rt *_router) commentMessageHandler(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	if !isParticipant {
-		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden) // 403
 		return
 	}
 
@@ -31,7 +31,7 @@ func (rt *_router) commentMessageHandler(w http.ResponseWriter, r *http.Request,
 	}
 	err = json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		http.Error(w, "Errore nella decodifica della richiesta", http.StatusBadRequest)
+		http.Error(w, "Errore nella decodifica della richiesta", http.StatusBadRequest) // 400
 		return
 	}
 
@@ -57,10 +57,14 @@ func (rt *_router) commentMessageHandler(w http.ResponseWriter, r *http.Request,
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(comment)
+	err = json.NewEncoder(w).Encode(comment)
+	if err != nil {
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		return
+	}
 }
 
-func (rt *_router) getCommentsHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) getComments(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	conversationID, _ := strconv.Atoi(ps.ByName("conversationID"))
 	messageID, _ := strconv.Atoi(ps.ByName("messageID"))
 	userID := reqcontext.UserIDFromContext(r.Context())
@@ -71,7 +75,7 @@ func (rt *_router) getCommentsHandler(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 	if !isParticipant {
-		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden) // 403
 		return
 	}
 
@@ -105,10 +109,14 @@ func (rt *_router) getCommentsHandler(w http.ResponseWriter, r *http.Request, ps
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(comments)
+	err = json.NewEncoder(w).Encode(comments)
+	if err != nil {
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		return
+	}
 }
 
-func (rt *_router) uncommentMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) uncommentMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	conversationID, _ := strconv.Atoi(ps.ByName("conversationID"))
 	messageID, _ := strconv.Atoi(ps.ByName("messageID"))
 	commentID, _ := strconv.Atoi(ps.ByName("commentID"))
@@ -120,13 +128,13 @@ func (rt *_router) uncommentMessageHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if !isParticipant {
-		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden) // 403
 		return
 	}
 
 	err = rt.db.DeleteComment(messageID, commentID, userID)
 	if err != nil {
-		http.Error(w, "Errore durante l'eliminazione del commento", http.StatusInternalServerError)
+		http.Error(w, "Commento non torvato", http.StatusNotFound) // 404
 		return
 	}
 

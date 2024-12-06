@@ -11,7 +11,7 @@ import (
 // Middleware per gestire il Bearer token
 func (rt *_router) authMiddleware(next httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-		// Estrai il Bearer token dall'header Authorization
+		// Estraggo il Bearer token dall'header Authorization
 		token := r.Header.Get("Authorization")
 		if len(token) < 7 || token[:7] != "Bearer " {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)

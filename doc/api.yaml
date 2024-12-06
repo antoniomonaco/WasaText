@@ -147,7 +147,7 @@ components:
           type: integer
           example: 1
           readOnly: true
-        messageId:
+        messageID:
           description: "ID of the message being commented on."
           type: integer
           example: 1
@@ -175,7 +175,8 @@ components:
         type: integer
         example: 1
         readOnly: true
-      name: conversationId
+        description: "An integer representing the unique identifier of the conversation."
+      name: conversationID
       in: path
       required: true
       description: "The unique identifier of the conversation."
@@ -184,7 +185,8 @@ components:
         type: integer
         example: 1
         readOnly: true
-      name: messageId
+        description: "An integer representing the unique identifier of the message."
+      name: messageID
       in: path
       required: true
       description: "The unique identifier of the message."
@@ -193,7 +195,8 @@ components:
         type: integer
         example: 1
         readOnly: true
-      name: commentId
+        description: "An integer representing the unique identifier of the comment."
+      name: commentID
       in: path
       required: true
       description: "The unique identifier of the comment."
@@ -225,7 +228,7 @@ paths:
                   maxLength: 16
       responses:
         '201':
-          description: User log-in action successful
+          description: "User log-in action successful"
           content:
             application/json:
               schema:
@@ -235,6 +238,8 @@ paths:
                     type: integer
                     example: 1
                     description: "Unique identifier for the user"
+        '400':
+          description: "Username not valid"
 
   /conversations/:
     get:
@@ -275,6 +280,8 @@ paths:
                   example: "group"
                 participants:
                   type: array
+                  minItems: 1
+                  maxItems: 100
                   items:
                     type: integer # User id
                   example: [1, 2, 3]
@@ -285,7 +292,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Conversation'
-  /conversations/{conversationId}:
+        '400':
+          description: "Invalid request"
+  /conversations/{conversationID}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
     get:
@@ -328,8 +337,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Message"
+        '400':
+          description: "Invalid request"
 
-  /conversations/{conversationId}/messages/{messageId}:
+  /conversations/{conversationID}/messages/{messageID}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
       - $ref: "#/components/parameters/MessageId"
@@ -352,8 +363,14 @@ paths:
                   type: integer
                   example: 2
       responses:
-        '204':
-          description: "Message forwarded successfully"
+        "201":
+          description: "Message forwarded successfully!"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        '403':
+          description: "Operation not permitted"
         '404':
           description: "Message not found"
     delete:
@@ -366,10 +383,12 @@ paths:
       responses:
         '204':
           description: "Message deleted successfully"
+        '403':
+          description: "Operation not permitted"
         '404':
           description: "Message not found"
 
-  /conversations/{conversationId}/messages/{messageId}/comments:
+  /conversations/{conversationID}/messages/{messageID}/comments:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
       - $ref: "#/components/parameters/MessageId"
@@ -397,6 +416,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Comment"
+        '400':
+          description: "Invalid request"
+        '403':
+          description: "Operation not permitted"
         '404':
           description: "Message not found"
     get:
@@ -417,10 +440,12 @@ paths:
                 maxItems: 100
                 items:
                   $ref: "#/components/schemas/Comment"
+        '403':
+          description: "Operation not permitted"
         '404':
           description: "Message not found"
 
-  /conversations/{conversationId}/messages/{messageId}/comments/{commentId}:
+  /conversations/{conversationID}/messages/{messageID}/comments/{commentID}:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
       - $ref: "#/components/parameters/MessageId"
@@ -435,10 +460,12 @@ paths:
       responses:
         '204':
           description: "Comment deleted successfully"
+        '403':
+          description: "Operation not permitted"
         '404':
           description: "Comment not found"
 
-  /conversations/{conversationId}/participants:
+  /conversations/{conversationID}/participants:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
     post:
@@ -476,12 +503,12 @@ paths:
       responses:
         '204':
           description: "Left the group successfully"
-        '400':
+        '403':
           description: "Cannot leave an individual chat"
         '404':
           description: "Conversation not found"
 
-  /conversations/{conversationId}/name:
+  /conversations/{conversationID}/name:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
     put:
@@ -512,7 +539,7 @@ paths:
         '404':
           description: "Conversation not found"
 
-  /conversations/{conversationId}/photo:
+  /conversations/{conversationID}/photo:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
     put:
@@ -581,8 +608,8 @@ paths:
       security:
         - bearerAuth: []
       tags: ["users"]
-      summary: "Set or update the full name of the current user"
-      description: "This operation allows the current user to set or update their full name."
+      summary: "Set or update the name of the current user"
+      description: "This operation allows the current user to set or update their name."
       operationId: setMyUserName
       requestBody:
         required: true
@@ -596,7 +623,7 @@ paths:
               pattern: "^[a-zA-Z0-9_-]+$"
       responses:
         '204':
-          description: "Full name updated successfully"
+          description: "Name updated successfully"
 
   /users/me/photo:
     put:

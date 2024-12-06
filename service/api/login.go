@@ -24,7 +24,7 @@ func (rt *_router) doLoginHandler(w http.ResponseWriter, r *http.Request, ps htt
 	}
 
 	pattern := "^[a-zA-Z0-9]{3,16}$"
-	re := regexp.MustCompile(pattern) //regex per il nome utente
+	re := regexp.MustCompile(pattern) // regex per il nome utente
 
 	// Controllo che il nome passato rispetta il pattern
 	if !re.MatchString(request.Name) {

@@ -10,7 +10,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func (rt *_router) addToGroupHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) addToGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 	conversationID, error := strconv.Atoi(ps.ByName("conversationID"))
 	if error != nil {
@@ -63,11 +63,11 @@ func (rt *_router) addToGroupHandler(w http.ResponseWriter, r *http.Request, ps 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNoContent) //204
+	w.WriteHeader(http.StatusNoContent) // 204
 
 }
 
-func (rt *_router) leaveGroupHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) leaveGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 	conversationID, error := strconv.Atoi(ps.ByName("conversationID"))
 	if error != nil {
@@ -120,11 +120,11 @@ func (rt *_router) leaveGroupHandler(w http.ResponseWriter, r *http.Request, ps 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNoContent) //204
+	w.WriteHeader(http.StatusNoContent) // 204
 
 }
 
-func (rt *_router) setGroupNameHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) setGroupName(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 	conversationID, error := strconv.Atoi(ps.ByName("conversationID"))
 	if error != nil {
@@ -176,7 +176,7 @@ func (rt *_router) setGroupNameHandler(w http.ResponseWriter, r *http.Request, p
 	w.WriteHeader(http.StatusNoContent) // 204
 }
 
-func (rt *_router) setGroupPhotoHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) setGroupPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 	conversationID, error := strconv.Atoi(ps.ByName("conversationID"))
 	if error != nil {

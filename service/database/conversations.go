@@ -13,19 +13,6 @@ func (db *appdbimpl) CreateConversation(conversationType, name, photoUrl string,
 		return 0, fmt.Errorf("errore durante l'avvio della transazione: %w", err)
 	}
 
-	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
-
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
 	// Inserisco la conversazione
 	var conversationID int
 
@@ -46,6 +33,10 @@ func (db *appdbimpl) CreateConversation(conversationType, name, photoUrl string,
 		if err != nil {
 			return 0, fmt.Errorf("errore durante l'inserimento dei partecipanti: %w", err)
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("errore durante il commit: %w", err)
 	}
 
 	return conversationID, nil
@@ -127,17 +118,6 @@ func (db *appdbimpl) SendMessage(conversationID int, senderID int, messageType s
 		return 0, fmt.Errorf("errore durante l'avvio della transazione: %w", err)
 	}
 
-	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if commitErr := tx.Commit(); commitErr != nil {
-			fmt.Println("Errore nel commit:", commitErr)
-		}
-
-	}()
-
 	// Inserisco il messaggio nella converszione
 	var messageID int64
 	result, err := tx.Exec(
@@ -152,6 +132,10 @@ func (db *appdbimpl) SendMessage(conversationID int, senderID int, messageType s
 		return 0, fmt.Errorf("errore durante il recupero dell'ID del messaggio: %w", err)
 	}
 
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("errore durante il commit: %w", err)
+	}
+
 	return int(messageID), nil
 }
 
@@ -162,23 +146,14 @@ func (db *appdbimpl) DeleteMessage(conversationID int, messageID int) error {
 		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
 	}
 
-	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
-
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
 	_, err = db.c.Exec("DELETE FROM messages WHERE conversation_id = ? AND id = ?",
 		conversationID, messageID)
 	if err != nil {
 		return fmt.Errorf("errore durante l'eliminazione del messaggio: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore durante il commit: %w", err)
 	}
 
 	return nil
@@ -248,23 +223,14 @@ func (db *appdbimpl) AddParticipant(conversationID int, UserID int) error {
 		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
 	}
 
-	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
-
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
 	_, err = db.c.Exec("INSERT INTO participants (user_id, conversation_id) VALUES (?, ?);",
 		UserID, conversationID)
 	if err != nil {
 		return fmt.Errorf("errore durante l'aggiunta del utente al gruppo: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore durante il commit: %w", err)
 	}
 
 	return nil
@@ -277,23 +243,14 @@ func (db *appdbimpl) RemoveParticipant(conversationID int, UserID int) error {
 		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
 	}
 
-	// Gestisco eventuali errori in modo da evitare di "sporcare" il database
-
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
 	_, err = db.c.Exec("DELETE FROM participants WHERE conversation_id = ? AND user_id = ?",
 		conversationID, UserID)
 	if err != nil {
 		return fmt.Errorf("errore durante l'aggiunta del utente al gruppo: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore durante il commit: %w", err)
 	}
 
 	return nil

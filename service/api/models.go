@@ -32,7 +32,7 @@ type Message struct {
 // A comment on a message in a conversation.
 type Comment struct {
 	ID        int       `json:"id"`
-	MessageID int       `json:"messageId"`
+	MessageID int       `json:"messageID"`
 	Content   string    `json:"content"`
 	Sender    User      `json:"sender"`
 	Timestamp time.Time `json:"timestamp"`

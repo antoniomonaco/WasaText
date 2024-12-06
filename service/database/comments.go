@@ -40,17 +40,6 @@ func (db *appdbimpl) DeleteComment(messageID int, commentID int, userID int) err
 		return fmt.Errorf("errore durante l'avvio della transazione: %w", err)
 	}
 
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
 	// Controllo che il commento appartenga all'utente
 	var count int
 	err = tx.QueryRow(
@@ -71,6 +60,9 @@ func (db *appdbimpl) DeleteComment(messageID int, commentID int, userID int) err
 	)
 	if err != nil {
 		return fmt.Errorf("errore durante l'eliminazione del commento: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("errore durante il commit: %w", err)
 	}
 
 	return nil

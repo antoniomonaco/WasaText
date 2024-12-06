@@ -12,7 +12,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func (rt *_router) getUSersHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) searchUsers(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 
 	IDFromContext := reqcontext.UserIDFromContext(r.Context()) // L'utente non può cercare se stesso, quindi passo l'id alla funzione nel db
 
@@ -131,7 +131,10 @@ func composeUserFromID(userID int, db database.AppDatabase) (User, error) {
 		return user, fmt.Errorf("impossibile trovare l'utente: %w", err)
 	}
 
-	row.Scan(&username, &photoUrl)
+	err = row.Scan(&username, &photoUrl)
+	if err != nil {
+		return user, fmt.Errorf("errore durante lo scan dell'utente: %w", err)
+	}
 	if photoUrl.Valid {
 		user.ID = userID
 		user.Username = username

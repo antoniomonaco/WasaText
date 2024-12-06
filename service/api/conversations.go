@@ -12,9 +12,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// getMyConversationsHandler gestisce la richiesta per ottenere tutte le conversazioni dell'utente.
+// getMyConversations gestisce la richiesta per ottenere tutte le conversazioni dell'utente.
 // Restituisce una lista di conversazioni.
-func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 
 	userID := reqcontext.UserIDFromContext(r.Context())
 
@@ -55,7 +55,7 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 		participantIDStrs := strings.Split(participantIDs, ",")
 		participantUsernameStrs := strings.Split(participantUsernames, ",")
 
-		//Itero sugli id per creare gli oggetti user
+		// Itero sugli id per creare gli oggetti user
 		for i, idStr := range participantIDStrs {
 			id, _ := strconv.Atoi(idStr)
 			conversation.Participants = append(conversation.Participants, User{
@@ -94,7 +94,7 @@ func (rt *_router) getMyConversationsHandler(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID := reqcontext.UserIDFromContext(r.Context())
 	conversationID, error := strconv.Atoi(ps.ByName("conversationID"))
 	if error != nil {
@@ -131,7 +131,7 @@ func (rt *_router) getConversationHandler(w http.ResponseWriter, r *http.Request
 
 }
 
-func (rt *_router) createConversationHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 
 	// Decodifica del payload JSON
@@ -199,14 +199,20 @@ func (rt *_router) createConversationHandler(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Risposta 201 Created
+	response := struct {
+		ConversationID int `json:"conversation_id"`
+	}{ConversationID: conversationID}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(struct {
-		ConversationID int `json:"conversation_id"`
-	}{ConversationID: conversationID})
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		return
+	}
 }
 
-func (rt *_router) sendMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 
 	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
@@ -284,7 +290,7 @@ func (rt *_router) sendMessageHandler(w http.ResponseWriter, r *http.Request, ps
 	}
 }
 
-func (rt *_router) deleteMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) deleteMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 
 	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
@@ -329,7 +335,7 @@ func (rt *_router) deleteMessageHandler(w http.ResponseWriter, r *http.Request, 
 	w.WriteHeader(http.StatusNoContent) //204
 }
 
-func (rt *_router) forwardMessageHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	IDFromContext := reqcontext.UserIDFromContext(r.Context())
 	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
 	if err != nil {
