@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -63,7 +64,7 @@ func (db *appdbimpl) UpdateUserName(username string, IDFromContext int) error {
 	if err == nil && existingID != IDFromContext {
 		return fmt.Errorf("il nome utente '%s' è già in uso", username)
 	}
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("errore durante il controllo del nome utente: %w", err)
 	}
 

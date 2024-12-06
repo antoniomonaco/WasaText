@@ -44,7 +44,6 @@ components:
           format: url
           minLength: 1
           maxLength: 255
-          nullable: true
           example: "https://example.com/profile-photo.jpg"
     Conversation:
       title: Conversation
@@ -77,13 +76,11 @@ components:
         name:  # In case of a private chat it will use the name of the other user
           description: "Name of the group conversation (optional)."
           type: string
-          nullable: true
           example: "Group of Friends"
         photoUrl:  # In case of a private chat it will use the photo of the other user
           description: "URL of the group conversation photo (optional)."
           type: string
           format: url
-          nullable: true
           example: "https://example.com/group-photo.jpg"
     Message:
       title: Message
