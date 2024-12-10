@@ -102,15 +102,17 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 		return
 	}
 
-	rows, err := rt.db.RetrieveConversation(conversationID, userID)
+	messageRows, err := rt.db.RetrieveMessages(conversationID, userID)
 	if err != nil {
 		http.Error(w, "Errore durante la lettura della conversazione", http.StatusInternalServerError)
 		return
 	}
+	defer messageRows.Close()
+
 	var messages []Message
 
-	for rows.Next() {
-		message, err := composeMessage(rows, w)
+	for messageRows.Next() {
+		message, err := composeMessage(messageRows, w)
 		if err != nil {
 			http.Error(w, "Errore durante la lettura dei messaggi", http.StatusInternalServerError)
 			return
@@ -122,13 +124,63 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 		http.Error(w, "Conversazione non trovata", http.StatusNotFound)
 		return
 	}
+
+	infoRows, err := rt.db.RetrieveConversationInfo(conversationID)
+	if err != nil {
+		http.Error(w, "Errore durante il recupero delle informazioni della conversazione", http.StatusInternalServerError)
+		return
+	}
+
+	var conversation Conversation
+	var name, photoUrl, participantIDs, participantUsernames, participantPhotoUrls sql.NullString
+
+	err = infoRows.Scan(&conversation.ID, &conversation.Type, &name, &photoUrl, &participantIDs, &participantUsernames, &participantPhotoUrls)
+	if err != nil {
+		http.Error(w, "Errore durante la lettura delle info della conversazione", http.StatusInternalServerError)
+		return
+	}
+	if photoUrl.Valid {
+		conversation.PhotoUrl = photoUrl.String
+	}
+	if name.Valid {
+		conversation.Name = name.String
+	}
+	participantIDStrs := []string{}
+	if participantIDs.Valid {
+		participantIDStrs = strings.Split(participantIDs.String, ",")
+	}
+	participantUsernameStrs := []string{}
+	if participantUsernames.Valid {
+		participantUsernameStrs = strings.Split(participantUsernames.String, ",")
+	}
+	participantPhotoUrlStrs := []string{}
+	if participantPhotoUrls.Valid {
+		participantPhotoUrlStrs = strings.Split(participantPhotoUrls.String, ",")
+	}
+
+	for i, idStr := range participantIDStrs {
+		id, _ := strconv.Atoi(idStr)
+		userphoto := ""
+		if len(participantPhotoUrlStrs) > i {
+			userphoto = participantPhotoUrlStrs[i]
+		}
+		conversation.Participants = append(conversation.Participants, composeUser(id, participantUsernameStrs[i], userphoto))
+	}
+
+	response := struct {
+		Conversation Conversation `json:"conversation"`
+		Messages     []Message    `json:"messages"`
+	}{
+		Conversation: conversation,
+		Messages:     messages,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(messages)
+	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
 		return
 	}
-
 }
 
 func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {

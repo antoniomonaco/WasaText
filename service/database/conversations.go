@@ -69,7 +69,7 @@ GROUP BY c.id, c.type`, userID)
 	return rows, nil
 }
 
-func (db *appdbimpl) RetrieveConversation(conversationID int, userID int) (*sql.Rows, error) {
+func (db *appdbimpl) RetrieveMessages(conversationID int, userID int) (*sql.Rows, error) {
 	rows, err := db.c.Query(`
 		SELECT 
 			m.*, 
@@ -86,6 +86,26 @@ func (db *appdbimpl) RetrieveConversation(conversationID int, userID int) (*sql.
 	}
 
 	return rows, nil
+}
+func (db *appdbimpl) RetrieveConversationInfo(conversationID int) (*sql.Row, error) {
+	row := db.c.QueryRow(`
+        SELECT 
+            c.id, c.type, c.name, c.photoUrl, 
+            GROUP_CONCAT(u.id) AS participantIDs, 
+            GROUP_CONCAT(u.username) AS participantUsernames, 
+            GROUP_CONCAT(u.photoUrl) AS participantPhotoUrls
+        FROM conversations AS c
+        JOIN participants AS p
+            ON c.id = p.conversation_id
+        JOIN users AS u
+            ON p.user_id = u.id
+        WHERE
+            c.id = ?
+        GROUP BY
+            c.id, c.type, c.name, c.photoUrl;
+    `, conversationID)
+
+	return row, nil
 }
 
 func (db *appdbimpl) RetrieveLatestMessage(conversationID int, userID int) (*sql.Rows, error) {

@@ -53,7 +53,8 @@ type AppDatabase interface {
 
 	CreateConversation(conversationType, name, photoUrl string, participants []int) (int, error)
 	RetrieveConversations(userID int) (*sql.Rows, error)
-	RetrieveConversation(conversationID int, userID int) (*sql.Rows, error)
+	RetrieveMessages(conversationID int, userID int) (*sql.Rows, error)
+	RetrieveConversationInfo(conversationID int) (*sql.Row, error)
 	RetrieveLatestMessage(conversationID int, userID int) (*sql.Rows, error)
 	IsUserParticipantOfConversation(conversationID int, userID int) (bool, error)
 	IsUserSenderOfMessage(conversationID int, userID int) (bool, error)
