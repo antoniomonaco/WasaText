@@ -1,65 +1,66 @@
 <template>
-    <div class="conversations-view">
-      <h2>Conversazioni</h2>
-      <ul v-if="conversations.length > 0">
-        <li v-for="conversation in conversations" :key="conversation.id" class="conversation">
-          <router-link :to="`/conversations/${conversation.id}`" class="conversation-link">
-            <img v-if="conversation.photoUrl" :src="conversation.photoUrl" alt="Foto profilo" class="conversation-photo" />
-            <div class="conversation-info">
-              <div class="conversation-name">
-                <span v-if="conversation.type === 'group'">
-                  {{ conversation.name || "Gruppo senza nome" }}
-                </span>
-                <span v-else>
-                  {{ getOtherParticipant(conversation).username }}
-                </span>
-              </div>
-              <div class="conversation-preview">
-                {{ conversation.latestMessage ? conversation.latestMessage.content : "Nessun messaggio" }}
-              </div>
-            </div>
-          </router-link>
-        </li>
-      </ul>
-      <div v-else>Nessuna conversazione trovata.</div>
-    </div>
+  <div class="conversations-view">
+    <h2>Conversazioni</h2>
+    <ul v-if="conversations.length > 0">
+      <li v-for="conversation in conversations" :key="conversation.id" class="conversation" @click="selectConversation(conversation.id)">
+        <img v-if="conversation.photoUrl" :src="conversation.photoUrl" alt="Foto profilo" class="conversation-photo" />
+        <div class="conversation-info">
+          <div class="conversation-name">
+            <span v-if="conversation.type === 'group'">
+              {{ conversation.name || "Gruppo senza nome" }}
+            </span>
+            <span v-else>
+              {{ getOtherParticipant(conversation).username }}
+            </span>
+          </div>
+          <div class="conversation-preview">
+            {{ conversation.latestMessage ? conversation.latestMessage.content : "Nessun messaggio" }}
+          </div>
+        </div>
+      </li>
+    </ul>
+    <div v-else>Nessuna conversazione trovata.</div>
+  </div>
 </template>
-  
-<script>
-  export default {
-    data() {
-      return {
-        conversations: []
-      };
-    },
-    async created() {
-      await this.fetchConversations();
-    },
-    methods: {
-      async fetchConversations() {
-        console.log("fetch conversations")
-        try {
-          const token = localStorage.getItem('authToken');
-          let authorization = `Bearer ${token}`
-          console.log(authorization)
-          const response = await this.$axios.get('/conversations/', {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          });
-          this.conversations = response.data;
-        } catch (error) {
-          console.error("Errore nel recupero delle conversazioni:", error);
-        }
-      },
-      getOtherParticipant(conversation) {
-        const token = localStorage.getItem('authToken');
-        const currentUserID = parseInt(token);
 
-        return conversation.participants.find(p => p.id !== currentUserID);
+<script>
+export default {
+  data() {
+    return {
+      conversations: []
+    };
+  },
+  async created() {
+    await this.fetchConversations();
+  },
+  methods: {
+    async fetchConversations() {
+      console.log("fetch conversations")
+      try {
+        const token = localStorage.getItem('authToken');
+        let authorization = `Bearer ${token}`
+        console.log(authorization)
+        const response = await this.$axios.get('/conversations/', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        this.conversations = response.data;
+      } catch (error) {
+        console.error("Errore nel recupero delle conversazioni:", error);
+      }
+    },
+    getOtherParticipant(conversation) {
+      const token = localStorage.getItem('authToken');
+      const currentUserID = parseInt(token);
+
+      return conversation.participants.find(p => p.id !== currentUserID);
+    },
+    selectConversation(conversationId) {
+      this.$emit('select-conversation', conversationId);
     }
-    }
-  };
+  }
+};
 </script>
 
 <style scoped>
@@ -75,6 +76,7 @@
   align-items: center;
   padding: 10px;
   border-bottom: 1px solid #ccc;
+  cursor: pointer;
 }
 
 .conversation-link {

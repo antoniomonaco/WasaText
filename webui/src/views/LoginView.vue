@@ -1,4 +1,10 @@
 <template>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+  </head>
     <div>
       <h1>Login</h1>
       <form @submit.prevent="login">
@@ -25,7 +31,7 @@
           const token = response.data.identifier;
           localStorage.setItem('authToken', token);
   
-          this.$router.push('/conversations/');
+          this.$router.push({ name: 'Main' });
         } catch (error) {
           if (error.response) {
             this.errorMessage = error.response.data;
