@@ -295,3 +295,16 @@ func (db *appdbimpl) UpdateGroupPhoto(PhotoUrl string, conversationID int) error
 
 	return nil
 }
+
+func (db *appdbimpl) MarkMessagesAsRead(conversationID, userID int) error {
+	_, err := db.c.Exec(`
+        UPDATE messages
+        SET status = 'read'
+        WHERE conversation_id = ? AND sender_id != ?`,
+		conversationID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("errore durante l'aggiornamento dello stato dei messaggi: %w", err)
+	}
+	return nil
+}

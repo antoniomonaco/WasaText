@@ -66,6 +66,7 @@ type AppDatabase interface {
 	RemoveParticipant(conversationID int, UserID int) error
 	UpdateGroupName(GroupName string, conversationID int) error
 	UpdateGroupPhoto(PhotoUrl string, conversationID int) error
+	MarkMessagesAsRead(conversationID, userID int) error
 
 	AddComment(messageID int, userID int, content string, timestamp time.Time) (int, error)
 	GetComments(messageID int) (*sql.Rows, error)

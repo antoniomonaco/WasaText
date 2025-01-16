@@ -339,6 +339,18 @@ paths:
                 $ref: "#/components/schemas/Message"
         '400':
           description: "Invalid request"
+    patch:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      summary: "Marks all messages in the conversation as read."
+      operationId: markMessagesAsRead
+      description: "Marks all messages in the conversation as read."
+      responses:
+        "204":
+          description: "Messages marked as read successfully"
+        "404":
+          description: "Conversation not found"
 
   /conversations/{conversationID}/messages/{messageID}:
     parameters:

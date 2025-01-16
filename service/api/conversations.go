@@ -505,3 +505,32 @@ func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
 
 	return message, nil
 }
+
+func (rt *_router) markMessagesAsRead(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID := reqcontext.UserIDFromContext(r.Context())
+	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
+	if err != nil {
+		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
+		return
+	}
+
+	// Verifica che l'utente sia un partecipante della conversazione
+	isParticipant, err := rt.db.IsUserParticipantOfConversation(conversationID, userID)
+	if err != nil {
+		http.Error(w, "Errore durante la verifica dei partecipanti", http.StatusInternalServerError)
+		return
+	}
+	if !isParticipant {
+		http.Error(w, "Accesso non autorizzato alla conversazione", http.StatusForbidden)
+		return
+	}
+
+	// Segna i messaggi come letti
+	err = rt.db.MarkMessagesAsRead(conversationID, userID)
+	if err != nil {
+		http.Error(w, "Errore durante l'aggiornamento dello stato dei messaggi", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent) // 204 No Content
+}
