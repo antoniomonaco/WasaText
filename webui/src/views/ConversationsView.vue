@@ -1,211 +1,334 @@
 <template>
-  <div class="conversations-view">
-    <div class="search-bar">
-      <i class="fas fa-search search-icon"></i>
-      <input type="text" placeholder="Cerca" v-model="searchQuery" />
-    </div>
-    <ul v-if="filteredConversations.length > 0">
-      <li
-        v-for="conversation in filteredConversations"
+  <div class="conversations-container">
+    <div class="conversations-list">
+      <div 
+        v-for="conversation in filteredConversations" 
         :key="conversation.id"
-        class="conversation"
+        class="conversation-item"
+        :class="{ 'active': selectedConversationId === conversation.id }"
         @click="selectConversation(conversation.id)"
       >
-        <img
-          v-if="conversation.photoUrl"
-          :src="conversation.photoUrl"
-          alt="Foto profilo"
-          class="conversation-photo"
-        />
-        <div class="conversation-info">
-          <div class="conversation-name-row">
-            <span class="conversation-name" v-if="conversation.type === 'group'">
-              {{ conversation.name || "Gruppo senza nome" }}
+        <!-- Avatar della conversazione -->
+        <div class="conversation-avatar">
+          <img 
+            :src="conversation.photoUrl || getParticipantPhoto(conversation) || '/api/placeholder/49/49'" 
+            :alt="getConversationName(conversation)"
+            class="avatar-img"
+          />
+        </div>
+
+        <!-- Info della conversazione -->
+        <div class="conversation-content">
+          <div class="conversation-header">
+            <span class="conversation-name">
+              {{ getConversationName(conversation) }}
             </span>
-            <span class="conversation-name" v-else>
-              {{ getOtherParticipant(conversation).username }}
-            </span>
-            <span class="conversation-time">
-              {{ conversation.latestMessage ? formatTimestamp(conversation.latestMessage.timestamp) : "" }}
+            <span class="conversation-time" v-if="conversation.latestMessage">
+              {{ formatConversationTime(conversation.latestMessage.timestamp) }}
             </span>
           </div>
-          <div class="conversation-preview-row">
-            <span class="conversation-preview">
-              {{ conversation.latestMessage ? conversation.latestMessage.content : "Nessun messaggio" }}
-            </span>
-            
-            <i v-if="conversation.latestMessage && conversation.latestMessage.sender.id !== currentUserID && conversation.unreadCount > 0" class="fas fa-circle unread-indicator"></i>
-            <span v-else-if="conversation.latestMessage && conversation.latestMessage.sender.id === currentUserID" class="fas fa-check sent-indicator"></span>
 
+          <div class="conversation-preview">
+            <!-- Anteprima ultimo messaggio -->
+            <div class="message-preview" :class="{'unread': hasUnreadMessages(conversation)}">
+              <span v-if="conversation.latestMessage && conversation.latestMessage.sender.id === currentUserId">
+                <i class="fas fa-check message-status" 
+                   :class="{'read': conversation.latestMessage.status === 'read'}">
+                </i>
+              </span>
+              {{ getMessagePreview(conversation) }}
+            </div>
+            
+            <!-- Badge messaggi non letti -->
+            <div v-if="getUnreadCount(conversation) > 0" class="unread-badge">
+              {{ getUnreadCount(conversation) }}
+            </div>
           </div>
         </div>
-      </li>
-    </ul>
-    <div v-else>Nessuna conversazione trovata.</div>
+      </div>
+    </div>
   </div>
 </template>
+
 <script>
 export default {
+  props: {
+    searchQuery: {
+      type: String,
+      default: ''
+    }
+  },
+  
   data() {
     return {
       conversations: [],
-      searchQuery: "",
-      currentUserID: this.getCurrentUserID(),
-    };
+      selectedConversationId: null,
+      currentUserId: parseInt(localStorage.getItem('authToken')),
+      pollingInterval: null
+    }
   },
-  async created() {
-    await this.fetchConversations();
-  },
+
   computed: {
     filteredConversations() {
-      if (!this.searchQuery) {
-        return this.conversations;
-      }
+      if (!this.searchQuery) return this.conversations
 
-      const query = this.searchQuery.toLowerCase();
-      return this.conversations.filter((conversation) => {
-        const conversationName = (conversation.name || "").toLowerCase();
-        const otherParticipantName = (
-          this.getOtherParticipant(conversation).username || ""
-        ).toLowerCase();
-        const latestMessageContent = (
-          conversation.latestMessage ? conversation.latestMessage.content : ""
-        ).toLowerCase();
-
-        return (
-          conversationName.includes(query) ||
-          otherParticipantName.includes(query) ||
-          latestMessageContent.includes(query)
-        );
-      });
-    },
+      const query = this.searchQuery.toLowerCase()
+      return this.conversations.filter(conversation => {
+        const conversationName = this.getConversationName(conversation).toLowerCase()
+        const lastMessage = this.getMessagePreview(conversation).toLowerCase()
+        return conversationName.includes(query) || lastMessage.includes(query)
+      })
+    }
   },
+
   methods: {
-    getCurrentUserID() {
-      const token = localStorage.getItem('authToken');
-      return parseInt(token);
+    selectConversation(id) {
+      this.selectedConversationId = id
+      this.$emit('select-conversation', id)
     },
-    async fetchConversations() {
-      console.log("fetch conversations");
-      try {
-        const token = localStorage.getItem("authToken");
-        let authorization = `Bearer ${token}`;
-        console.log(authorization);
-        const response = await this.$axios.get("/conversations/", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        this.conversations = response.data.map(conversation => ({
-          ...conversation,
-          unreadCount: conversation.messages ? conversation.messages.filter(message => !message.readStatus && message.sender.id !== this.currentUserID).length : 0
-        }));
-      } catch (error) {
-        console.error("Errore nel recupero delle conversazioni:", error);
+
+    getConversationName(conversation) {
+      if (conversation.type === 'group') {
+        return conversation.name || 'Gruppo senza nome'
       }
+      const otherParticipant = this.getOtherParticipant(conversation)
+      return otherParticipant ? otherParticipant.username : 'Utente sconosciuto'
     },
+
+    getParticipantPhoto(conversation) {
+      if (conversation.type === 'group') {
+        return conversation.photoUrl
+      }
+      const otherParticipant = this.getOtherParticipant(conversation)
+      return otherParticipant ? otherParticipant.photoUrl : null
+    },
+
     getOtherParticipant(conversation) {
-      const token = localStorage.getItem("authToken");
-      const currentUserID = parseInt(token);
-      return conversation.participants.find((p) => p.id !== currentUserID);
+      return conversation.participants?.find(p => p.id !== this.currentUserId)
     },
-    selectConversation(conversationId) {
-      this.$emit("select-conversation", conversationId);
+
+    getMessagePreview(conversation) {
+      if (!conversation.latestMessage) return 'Nessun messaggio'
+      
+      const message = conversation.latestMessage
+      if (message.type === 'text') {
+        return message.content
+      } else if (message.type === 'media') {
+        return 'Foto'
+      }
+      return 'Messaggio'
     },
-    formatTimestamp(timestamp) {
-      return new Date(timestamp).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
+
+    formatConversationTime(timestamp) {
+      if (!timestamp) return '';
+      
+      const date = new Date(timestamp);
+      
+      // Verifica se la data è valida
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date:', timestamp);
+        return '';
+      }
+
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      // Se è oggi
+      if (date.toDateString() === now.toDateString()) {
+        return date.toLocaleTimeString([], { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+      }
+      
+      // Se è ieri
+      if (date.toDateString() === yesterday.toDateString()) {
+        return 'Ieri';
+      }
+      
+      // Se è quest'anno
+      if (date.getFullYear() === now.getFullYear()) {
+        return date.toLocaleDateString([], {
+          day: '2-digit',
+          month: '2-digit'
+        });
+      }
+      
+      // Se è un anno diverso
+      return date.toLocaleDateString([], {
+        day: '2-digit',
+        month: '2-digit',
+        year: '2-digit'
       });
     },
+
+    hasUnreadMessages(conversation) {
+      return conversation.messages?.some(message => 
+        message.sender.id !== this.currentUserId && 
+        message.status !== 'read'
+      )
+    },
+
+    getUnreadCount(conversation) {
+      return conversation.messages?.filter(message => 
+        message.sender.id !== this.currentUserId && 
+        message.status !== 'read'
+      ).length || 0
+    },
+
+    async fetchConversations() {
+      try {
+        const response = await this.$axios.get('/conversations/', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+          }
+        })
+        this.conversations = response.data
+      } catch (error) {
+        console.error('Errore nel recupero delle conversazioni:', error)
+      }
+    },
+
+    startPolling() {
+      this.pollingInterval = setInterval(this.fetchConversations, 5000)
+    },
+
+    stopPolling() {
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval)
+        this.pollingInterval = null
+      }
+    }
   },
-};
+
+  async created() {
+    await this.fetchConversations()
+    this.startPolling()
+  },
+
+  beforeUnmount() {
+    this.stopPolling()
+  }
+}
 </script>
+
 <style scoped>
-@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css");
-.conversations-view {
-  width: 100%;
-  height: 100%;
-  background-color: #f8f9fa;
-  border-right: 1px solid #e9edef;
+.conversations-container {
+  flex: 1;
   overflow-y: auto;
+  background-color: #111b21;
 }
-.search-bar {
+
+.conversations-list {
   display: flex;
-  align-items: center;
-  padding: 10px;
-  background-color: #f0f2f5;
-  border-bottom: 1px solid #d1d7db;
+  flex-direction: column;
 }
-.search-icon {
-  margin-right: 10px;
-  color: #919191;
-}
-.search-bar input {
-  width: 90%;
-  border: none;
-  background-color: #fff;
-  padding: 8px;
-  border-radius: 20px;
-  outline: none;
-  font-size: 14px;
-}
-.conversation {
+
+.conversation-item {
   display: flex;
-  align-items: center;
-  padding: 10px;
-  background-color: #fff;
-  border-bottom: 1px solid #e9edef;
+  padding: 12px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
+  border-bottom: 1px solid #222d34;
 }
-.conversation:hover {
-  background-color: #f5f5f5;
+
+.conversation-item:hover {
+  background-color: #202c33;
 }
-.conversation-photo {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
+
+.conversation-item.active {
+  background-color: #2a3942;
+}
+
+.conversation-avatar {
+  width: 49px;
+  height: 49px;
   margin-right: 15px;
+  flex-shrink: 0;
 }
-.conversation-info {
-  flex-grow: 1;
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
 }
-.conversation-name-row {
+
+.conversation-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.conversation-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
+  margin-bottom: 4px;
 }
+
 .conversation-name {
-  font-weight: 600;
-  color: #111b21;
-  font-size: 16px;
-}
-.conversation-time {
-  font-size: 12px;
-  color: #667781;
-}
-.conversation-preview-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.conversation-preview {
-  font-size: 14px;
-  color: #667781;
+  color: #e9edef;
+  font-size: 17px;
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 70%;
 }
-.unread-indicator {
-  color: #00a884;
+
+.conversation-time {
+  color: #8696a0;
   font-size: 12px;
-  margin-left: auto;
+  white-space: nowrap;
+  margin-left: 6px;
 }
-.sent-indicator {
-  color: #667781; /* Colore grigio per il segno di spunta */
-  font-size: 14px; /* Dimensione del segno di spunta */
-  margin-left: auto; /* Sposta il segno di spunta a destra */
+
+.conversation-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.message-preview {
+  color: #8696a0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 85%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-preview.unread {
+  color: #e9edef;
+  font-weight: 500;
+}
+
+.message-status {
+  font-size: 14px;
+  color: #8696a0;
+}
+
+.message-status.read {
+  color: #53bdeb;
+}
+
+.unread-badge {
+  background-color: #00a884;
+  color: #111b21;
+  font-size: 12px;
+  font-weight: 500;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
 }
 </style>
