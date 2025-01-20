@@ -44,24 +44,24 @@ func (db *appdbimpl) CreateConversation(conversationType, name, photoUrl string,
 
 func (db *appdbimpl) RetrieveConversations(userID int) (*sql.Rows, error) {
 	rows, err := db.c.Query(`
-WITH tmpConv AS (
-	SELECT c.id, c.type, u.id, u.username, c.name, c.photoUrl
-	FROM conversations c
-	JOIN participants p ON c.id = p.conversation_id
-	JOIN users u ON p.user_id = u.id
-	WHERE p.user_id = ?
-)
-SELECT
-    c.id,
-    c.type,
-    GROUP_CONCAT(u.id),
-    GROUP_CONCAT(u.username),
-    COALESCE(c.name, ''),    -- COALESCE CONVERTE I VALORI NULL IN STRINGHE VUOTE
-    COALESCE(c.photoUrl, '')
-FROM tmpConv AS c
-JOIN participants AS p ON c.id = p.conversation_id
-JOIN users AS u ON p.user_id = u.id
-GROUP BY c.id, c.type`, userID)
+		SELECT 
+			c.id,
+			c.type,
+			GROUP_CONCAT(u.id) as participant_ids,
+			GROUP_CONCAT(u.username) as participant_usernames,
+			GROUP_CONCAT(COALESCE(u.photoUrl,''), '|||') AS participant_photos,
+			COALESCE(c.name, '') as name,
+			COALESCE(c.photoUrl, '') as photo_url
+		FROM conversations c
+		JOIN participants p ON c.id = p.conversation_id
+		JOIN users u ON p.user_id = u.id
+		WHERE c.id IN (
+			SELECT conversation_id
+			FROM participants
+			WHERE user_id = ?
+		)
+		GROUP BY c.id, c.type, c.name, c.photoUrl;
+    `, userID)
 
 	if err != nil {
 		return nil, fmt.Errorf("errore durante il recupero delle conversazioni: %w", err)
@@ -89,22 +89,23 @@ func (db *appdbimpl) RetrieveMessages(conversationID int, userID int) (*sql.Rows
 }
 func (db *appdbimpl) RetrieveConversationInfo(conversationID int) (*sql.Row, error) {
 	row := db.c.QueryRow(`
-        SELECT 
-            c.id, c.type, c.name, c.photoUrl, 
-            GROUP_CONCAT(u.id) AS participantIDs, 
-            GROUP_CONCAT(u.username) AS participantUsernames, 
-            GROUP_CONCAT(u.photoUrl) AS participantPhotoUrls
-        FROM conversations AS c
-        JOIN participants AS p
-            ON c.id = p.conversation_id
-        JOIN users AS u
-            ON p.user_id = u.id
-        WHERE
-            c.id = ?
-        GROUP BY
-            c.id, c.type, c.name, c.photoUrl;
+    SELECT
+    c.id, c.type, 
+    COALESCE(c.name, '') as name, 
+    COALESCE(c.photoUrl, '') as photoUrl,
+    GROUP_CONCAT(u.id) AS participantIDs,
+    GROUP_CONCAT(u.username) AS participantUsernames,
+    GROUP_CONCAT(COALESCE(u.photoUrl, ''), '|||') AS participantPhotoUrls
+    FROM conversations AS c
+    JOIN participants AS p
+    ON c.id = p.conversation_id
+    JOIN users AS u
+    ON p.user_id = u.id
+    WHERE
+    c.id = ?
+    GROUP BY
+    c.id, c.type, c.name, c.photoUrl;
     `, conversationID)
-
 	return row, nil
 }
 

@@ -4,15 +4,17 @@ import HomeView from '../views/HomeView.vue'
 import ConversationsView from '../views/ConversationsView.vue'
 import ChatView from '../views/ChatView.vue'
 import MainView from '../views/MainView.vue'
+import ProfileView from '../views/ProfileView.vue'
 
 
 const router = createRouter({
 	history: createWebHashHistory(import.meta.env.BASE_URL),
 	routes: [
-		{path: '/',name: "Main" ,component: MainView},
+		{path: '/',name: "Main" ,component: MainView, meta: { requiresAuth: true }},
 		{path: '/session', name: 'login', component: LoginView},
-		{path: '/conversations/', name: 'conversations', component: ConversationsView},
-		{path: '/conversations/:conversationID', name: 'chat', component: ChatView},
+		{path: '/conversations/', name: 'conversations', component: ConversationsView, meta: { requiresAuth: true }},
+		{path: '/conversations/:conversationID', name: 'chat', component: ChatView, meta: { requiresAuth: true }},
+		{path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true }},
 	]
 })
 router.beforeEach((to, from, next) => {

@@ -36,6 +36,7 @@
                  const response = await this.$axios.post('/session', { name: this.username });
                  const token = response.data.identifier;
                  localStorage.setItem('authToken', token);
+                 localStorage.setItem('username', this.username);
                  this.$router.push({ name: 'Main' });
              } catch (error) {
                  if (error.response) {

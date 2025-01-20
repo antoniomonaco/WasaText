@@ -15,7 +15,6 @@ import (
 // getMyConversations gestisce la richiesta per ottenere tutte le conversazioni dell'utente.
 // Restituisce una lista di conversazioni.
 func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-
 	userID := reqcontext.UserIDFromContext(r.Context())
 
 	rows, err := rt.db.RetrieveConversations(userID)
@@ -25,70 +24,93 @@ func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps
 	}
 	defer rows.Close()
 
-	// Funzione per creare una lista di conversazioni.
 	var conversations []Conversation
 	for rows.Next() {
 		var conversation Conversation
-		var participantIDs string
-		var participantUsernames string
-		var name sql.NullString
-		var photoUrl sql.NullString
+		var participantIDs, participantUsernames, participantPhotos string
+		var name, photoUrl sql.NullString
 
-		err := rows.Scan(&conversation.ID, &conversation.Type, &participantIDs, &participantUsernames, &name, &photoUrl)
+		err := rows.Scan(
+			&conversation.ID,
+			&conversation.Type,
+			&participantIDs,
+			&participantUsernames,
+			&participantPhotos,
+			&name,
+			&photoUrl,
+		)
 		if err != nil {
 			http.Error(w, "Errore durante la lettura delle conversazioni", http.StatusInternalServerError)
 			return
 		}
 
-		// Converto i campi da sql.NullString a stringa normale
 		conversation.Name = ""
+		conversation.PhotoUrl = ""
+		conversation.Participants = []User{}
+
 		if name.Valid {
 			conversation.Name = name.String
 		}
-
-		conversation.PhotoUrl = ""
 		if photoUrl.Valid {
 			conversation.PhotoUrl = photoUrl.String
 		}
 
-		// Faccio lo split per ottenere la lista con gli id e i nomi dei partecipanti
-		participantIDStrs := strings.Split(participantIDs, ",")
-		participantUsernameStrs := strings.Split(participantUsernames, ",")
+		if participantIDs != "" && participantUsernames != "" {
+			idsList := strings.Split(participantIDs, ",")
+			usernamesList := strings.Split(participantUsernames, ",")
+			var photosList []string
+			if participantPhotos != "" {
+				photosList = strings.Split(participantPhotos, "|||")
+			}
 
-		// Itero sugli id per creare gli oggetti user
-		for i, idStr := range participantIDStrs {
-			id, _ := strconv.Atoi(idStr)
-			conversation.Participants = append(conversation.Participants, User{
-				ID:       id,
-				Username: participantUsernameStrs[i],
-			})
-		}
+			for i := range idsList {
+				id, _ := strconv.Atoi(idsList[i])
+				userPhotoUrl := ""
+				if i < len(photosList) {
+					userPhotoUrl = photosList[i]
+				}
 
-		// Compongo l'anteprima della conversazione
-
-		rows, err := rt.db.RetrieveLatestMessage(conversation.ID, userID)
-		if err != nil {
-			http.Error(w, "Errore durante la lettura dell'anteprima", http.StatusInternalServerError)
-			return
-		}
-		var message Message
-		for rows.Next() {
-			message, err = composeMessage(rows, w)
-			if err != nil {
-				http.Error(w, "Errore durante la composizione dell'anteprima", http.StatusInternalServerError)
-				return
+				user := User{
+					ID:       id,
+					Username: usernamesList[i],
+					PhotoUrl: userPhotoUrl,
+				}
+				conversation.Participants = append(conversation.Participants, user)
 			}
 		}
 
-		conversation.LatestMessage = message
+		// Gestione chat private
+		if conversation.Type == "chat" && len(conversation.Participants) > 0 {
+			for _, participant := range conversation.Participants {
+				if participant.ID != userID {
+					conversation.Name = participant.Username
+					if conversation.PhotoUrl == "" {
+						conversation.PhotoUrl = participant.PhotoUrl
+					}
+					break
+				}
+			}
+		}
+
+		// Inizializza un messaggio vuoto se non ne esistono
+		conversation.LatestMessage = Message{}
+
+		// Recupera l'ultimo messaggio solo se esiste
+		latestMessageRows, err := rt.db.RetrieveLatestMessage(conversation.ID, userID)
+		if err == nil && latestMessageRows != nil {
+			defer latestMessageRows.Close()
+			if latestMessageRows.Next() {
+				if message, err := composeMessage(latestMessageRows, w); err == nil {
+					conversation.LatestMessage = message
+				}
+			}
+		}
 
 		conversations = append(conversations, conversation)
-
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(conversations)
-	if err != nil {
+	if err := json.NewEncoder(w).Encode(conversations); err != nil {
 		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
 		return
 	}
@@ -101,16 +123,13 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 		http.Error(w, "ID conversazione non valido", http.StatusBadRequest)
 		return
 	}
-
 	messageRows, err := rt.db.RetrieveMessages(conversationID, userID)
 	if err != nil {
 		http.Error(w, "Errore durante la lettura della conversazione", http.StatusInternalServerError)
 		return
 	}
 	defer messageRows.Close()
-
 	var messages []Message
-
 	for messageRows.Next() {
 		message, err := composeMessage(messageRows, w)
 		if err != nil {
@@ -119,21 +138,17 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 		}
 		messages = append(messages, message)
 	}
-
 	if messages == nil {
 		http.Error(w, "Conversazione non trovata", http.StatusNotFound)
 		return
 	}
-
 	infoRows, err := rt.db.RetrieveConversationInfo(conversationID)
 	if err != nil {
 		http.Error(w, "Errore durante il recupero delle informazioni della conversazione", http.StatusInternalServerError)
 		return
 	}
-
 	var conversation Conversation
 	var name, photoUrl, participantIDs, participantUsernames, participantPhotoUrls sql.NullString
-
 	err = infoRows.Scan(&conversation.ID, &conversation.Type, &name, &photoUrl, &participantIDs, &participantUsernames, &participantPhotoUrls)
 	if err != nil {
 		http.Error(w, "Errore durante la lettura delle info della conversazione", http.StatusInternalServerError)
@@ -155,9 +170,8 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 	}
 	participantPhotoUrlStrs := []string{}
 	if participantPhotoUrls.Valid {
-		participantPhotoUrlStrs = strings.Split(participantPhotoUrls.String, ",")
+		participantPhotoUrlStrs = strings.Split(participantPhotoUrls.String, "|||")
 	}
-
 	for i, idStr := range participantIDStrs {
 		id, _ := strconv.Atoi(idStr)
 		userphoto := ""
@@ -166,7 +180,6 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 		}
 		conversation.Participants = append(conversation.Participants, composeUser(id, participantUsernameStrs[i], userphoto))
 	}
-
 	response := struct {
 		Conversation Conversation `json:"conversation"`
 		Messages     []Message    `json:"messages"`
@@ -174,7 +187,6 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 		Conversation: conversation,
 		Messages:     messages,
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {

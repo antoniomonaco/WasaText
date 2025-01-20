@@ -1,15 +1,16 @@
+<!-- MainView.vue -->
 <template>
-  <head>
+  <header>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  </head>
+  </header>
   <div class="main-view">
     <div class="conversations-panel">
       <!-- Header della sidebar -->
       <div class="sidebar-header">
         <div class="user-avatar">
           <img 
-            :src="currentUser?.photoUrl || '/api/placeholder/40/40'" 
-            alt="Profile"
+            :src="currentUser?.photoUrl || '/default-avatar.jpeg'" 
+            :alt="currentUser?.username"
             class="avatar-img"
           />
         </div>
@@ -90,7 +91,7 @@
               @click="startNewChat(user.id)"
             >
               <img 
-                :src="user.photoUrl || '/api/placeholder/40/40'" 
+                :src="user.photoUrl || '/default-avatar.jpeg'" 
                 alt="User avatar" 
                 class="user-avatar"
               />
@@ -121,6 +122,7 @@ export default {
       newChatSearch: '',
       users: [],
       currentUser: null,
+      pollingInterval : null
     }
   },
   computed: {
@@ -132,7 +134,29 @@ export default {
       )
     }
   },
+  async created() {
+    await this.refreshUserData();
+    this.startPolling();
+    window.addEventListener('userProfileUpdated', this.refreshUserData);
+  },
+
+  beforeUnmount() {
+    this.stopPolling();
+    window.removeEventListener('userProfileUpdated', this.refreshUserData);
+  },
   methods: {
+    async refreshUserData() {
+      try {
+        const response = await this.$axios.get('/users/me', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+          }
+        });
+        this.currentUser = response.data;
+      } catch (error) {
+        console.error('Errore nel recupero dei dati utente:', error);
+      }
+    },
     async selectConversation(conversationId) {
       this.selectedConversationId = conversationId
       this.showUserMenu = false
@@ -175,21 +199,27 @@ export default {
       }
     },
     handleProfileSettings() {
-      // Implementa la logica per le impostazioni del profilo
-      // Potrebbe aprire un modal o navigare verso una pagina delle impostazioni
-      this.$router.push('/profile-settings')
+      this.$router.push('/profile')
       this.showUserMenu = false
     },
     handleLogout() {
       localStorage.removeItem('authToken')
       this.$router.push('/session')
+    },
+    startPolling() {
+      this.pollingInterval = setInterval(this.refreshUserData, 5000);
+    },
+
+    stopPolling() {
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval);
+      }
     }
   }
 }
 </script>
 
 <style scoped>
-/* Stili riportati dal primo file */
 .main-view {
   display: flex;
   height: 100vh;
@@ -210,7 +240,6 @@ export default {
   flex-direction: column;
 }
 
-/* Tutti gli altri stili riportati dal primo file */
 .sidebar-header {
   display: flex;
   align-items: center;

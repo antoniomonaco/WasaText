@@ -17,6 +17,7 @@ func (rt *_router) Handler() http.Handler {
 	rt.router.GET("/users/", rt.authMiddleware(rt.wrap(rt.searchUsers)))
 	rt.router.PUT("/users/me/name", rt.authMiddleware(rt.wrap(rt.setMyUserName)))
 	rt.router.PUT("/users/me/photo", rt.authMiddleware(rt.wrap(rt.setMyPhoto)))
+	rt.router.GET("/users/me", rt.authMiddleware(rt.wrap(rt.getMyInformation)))
 
 	// Conversations
 	rt.router.GET("/conversations/", rt.authMiddleware(rt.wrap(rt.getMyConversations)))

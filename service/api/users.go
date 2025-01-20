@@ -109,6 +109,39 @@ func (rt *_router) setMyPhoto(w http.ResponseWriter, r *http.Request, ps httprou
 
 }
 
+func (rt *_router) getMyInformation(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID := reqcontext.UserIDFromContext(r.Context())
+
+	// Recupera i dati dell'utente dal database
+	row, err := rt.db.RetrieveUserFromID(userID)
+	if err != nil {
+		http.Error(w, "Errore durante il recupero dei dati utente", http.StatusInternalServerError)
+		return
+	}
+
+	var username string
+	var photoUrl sql.NullString
+
+	err = row.Scan(&username, &photoUrl)
+	if err != nil {
+		http.Error(w, "Errore durante la lettura dei dati utente", http.StatusInternalServerError)
+		return
+	}
+
+	user := User{
+		ID:       userID,
+		Username: username,
+		PhotoUrl: photoUrl.String,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(user)
+	if err != nil {
+		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+		return
+	}
+}
+
 func composeUser(userID int, username string, photoUrl string) User {
 	user := User{
 		ID:       userID,

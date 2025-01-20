@@ -11,7 +11,7 @@
         <!-- Avatar della conversazione -->
         <div class="conversation-avatar">
           <img 
-            :src="conversation.photoUrl || getParticipantPhoto(conversation) || '/api/placeholder/49/49'" 
+            :src="getConversationPhoto(conversation)" 
             :alt="getConversationName(conversation)"
             class="avatar-img"
           />
@@ -70,53 +70,48 @@ export default {
 
   computed: {
     filteredConversations() {
-      if (!this.searchQuery) return this.conversations
+      if (!this.searchQuery) return this.conversations;
 
-      const query = this.searchQuery.toLowerCase()
+      const query = this.searchQuery.toLowerCase();
       return this.conversations.filter(conversation => {
-        const conversationName = this.getConversationName(conversation).toLowerCase()
-        const lastMessage = this.getMessagePreview(conversation).toLowerCase()
-        return conversationName.includes(query) || lastMessage.includes(query)
-      })
+        const conversationName = this.getConversationName(conversation).toLowerCase();
+        const lastMessage = this.getMessagePreview(conversation).toLowerCase();
+        return conversationName.includes(query) || lastMessage.includes(query);
+      });
     }
   },
 
   methods: {
-    selectConversation(id) {
-      this.selectedConversationId = id
-      this.$emit('select-conversation', id)
-    },
-
     getConversationName(conversation) {
       if (conversation.type === 'group') {
-        return conversation.name || 'Gruppo senza nome'
+        return conversation.name || 'Gruppo senza nome';
       }
-      const otherParticipant = this.getOtherParticipant(conversation)
-      return otherParticipant ? otherParticipant.username : 'Utente sconosciuto'
+      const otherParticipant = this.getOtherParticipant(conversation);
+      return otherParticipant ? otherParticipant.username : 'Utente sconosciuto';
     },
 
-    getParticipantPhoto(conversation) {
+    getConversationPhoto(conversation) {
       if (conversation.type === 'group') {
-        return conversation.photoUrl
+        return conversation.photoUrl || '/default-avatar.jpeg';
       }
-      const otherParticipant = this.getOtherParticipant(conversation)
-      return otherParticipant ? otherParticipant.photoUrl : null
+      const otherParticipant = this.getOtherParticipant(conversation);
+      return otherParticipant?.photoUrl || '/default-avatar.jpeg';
     },
 
     getOtherParticipant(conversation) {
-      return conversation.participants?.find(p => p.id !== this.currentUserId)
+      return conversation.participants?.find(p => p.id !== this.currentUserId);
     },
 
     getMessagePreview(conversation) {
-      if (!conversation.latestMessage) return 'Nessun messaggio'
+      if (!conversation.latestMessage) return 'Nessun messaggio';
       
-      const message = conversation.latestMessage
+      const message = conversation.latestMessage;
       if (message.type === 'text') {
-        return message.content
+        return message.content;
       } else if (message.type === 'media') {
-        return 'Foto'
+        return 'Foto';
       }
-      return 'Messaggio'
+      return 'Messaggio';
     },
 
     formatConversationTime(timestamp) {
@@ -167,48 +162,56 @@ export default {
       return conversation.messages?.some(message => 
         message.sender.id !== this.currentUserId && 
         message.status !== 'read'
-      )
+      );
     },
 
     getUnreadCount(conversation) {
       return conversation.messages?.filter(message => 
         message.sender.id !== this.currentUserId && 
         message.status !== 'read'
-      ).length || 0
+      ).length || 0;
     },
 
     async fetchConversations() {
+      console.log("Auth code: ",localStorage.getItem('authToken'))
       try {
         const response = await this.$axios.get('/conversations/', {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`
           }
-        })
-        this.conversations = response.data
+        });
+        this.conversations = response.data;
       } catch (error) {
-        console.error('Errore nel recupero delle conversazioni:', error)
+        console.error('Errore nel recupero delle conversazioni:', error);
       }
     },
 
+    selectConversation(id) {
+      this.selectedConversationId = id;
+      this.$emit('select-conversation', id);
+    },
+
     startPolling() {
-      this.pollingInterval = setInterval(this.fetchConversations, 5000)
+      this.pollingInterval = setInterval(this.fetchConversations, 5000);
     },
 
     stopPolling() {
       if (this.pollingInterval) {
-        clearInterval(this.pollingInterval)
-        this.pollingInterval = null
+        clearInterval(this.pollingInterval);
+        this.pollingInterval = null;
       }
     }
   },
 
-  async created() {
-    await this.fetchConversations()
-    this.startPolling()
+  created() {
+    this.fetchConversations();
+    this.startPolling();
+    window.addEventListener('userProfileUpdated', this.fetchConversations);
   },
 
   beforeUnmount() {
-    this.stopPolling()
+    this.stopPolling();
+    window.removeEventListener('userProfileUpdated', this.fetchConversations);
   }
 }
 </script>
