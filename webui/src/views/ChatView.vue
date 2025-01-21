@@ -283,15 +283,18 @@ export default {
     },
 
     // Metodi di gestione messaggi
+// Metodi di gestione messaggi
     sendMessage(messagePayload) {
       const messageData = {
-        type: 'text',
-        content: messagePayload.text
+        type: messagePayload.type || 'text', 
+        content: messagePayload.type === 'media' ? messagePayload.content : messagePayload.text
       }
 
       if (messagePayload.replyTo) {
         messageData.replyTo = messagePayload.replyTo
       }
+
+      console.log('Sending message:', messageData); // Debug log
 
       this.$axios.post(
         `/conversations/${this.conversationID}`,
@@ -335,20 +338,18 @@ export default {
         this.selectedMessage = message.id
       }
       
-      // Chiudi altri modal aperti
+      // Chiude altri modal aperti
       this.showCommentsModal = false
       this.showForwardModal = false
       
-      // Previeni la propagazione per non chiudere il menu immediatamente
+      // Per non chiudere il menu immediatamente
       event.stopPropagation()
     },
     mounted() {
-      // Aggiungi un listener per chiudere il menu quando si clicca altrove
       document.addEventListener('click', this.handleOutsideClick)
     },
 
     beforeUnmount() {
-      // Rimuovi il listener quando il componente viene distrutto
       document.removeEventListener('click', this.handleOutsideClick)
     },
 
@@ -398,10 +399,7 @@ export default {
         )
 
         if (response.data) {
-          // Aggiungi il nuovo commento alla lista dei commenti
           this.currentComments = [...this.currentComments, response.data]
-          
-          // Resetta l'input del commento nel componente figlio
           this.newComment = ''
         }
       } catch (error) {
@@ -455,8 +453,8 @@ export default {
     async commentMessage(message) {
       this.selectedMessageForComments = message
       this.showCommentsModal = true
-      this.currentComments = [] // Azzera i commenti precedenti
-      this.isLoadingComments = false // Non mostrare il caricamento 
+      this.currentComments = [] 
+      this.isLoadingComments = false 
     },
 
     // Metodi di inoltro
@@ -641,7 +639,6 @@ export default {
     }
   },
   
-  // Lifecycle hooks
   created() {
     this.fetchConversation()
   },

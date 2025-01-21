@@ -5,7 +5,8 @@
     class="message-wrapper" 
     :class="{
       'sent': isSentByMe,
-      'received': !isSentByMe
+      'received': !isSentByMe,
+      'media-message': message.type === 'media'
     }"
   >
     <div 
@@ -30,7 +31,16 @@
             {{ getReplyingSenderName(message.replyTo) }}
           </div>
           <div class="quoted-content">
-            {{ getReplyMessageContent(message.replyTo) }}
+            <template v-if="message.replyTo.type === 'media'">
+              <img 
+                :src="message.replyTo.content" 
+                alt="Quoted media"
+                class="quoted-media"
+              />
+            </template>
+            <template v-else>
+              {{ getReplyMessageContent(message.replyTo) }}
+            </template>
           </div>
         </div>
 
@@ -43,13 +53,19 @@
         </div>
 
         <!-- Media -->
-        <img 
-          v-else-if="message.type === 'media'"
-          :src="message.content"
-          :alt="message.type"
-          class="message-media"
-          @load="$emit('media-loaded')"
-        />
+        <div v-else-if="message.type === 'media'" class="media-container">
+          <img 
+            :src="message.content"
+            :alt="'Image shared by ' + message.sender.username"
+            class="message-media"
+            @load="handleImageLoad"
+            @error="handleImageError"
+            @click="showFullImage"
+          />
+          <div v-if="imageError" class="image-error">
+            Impossibile caricare l'immagine
+          </div>
+        </div>
 
         <!-- Badge commenti -->
         <div 
@@ -122,6 +138,16 @@
         Elimina
       </div>
     </div>
+
+    <!-- Modal immagine a schermo intero -->
+    <div v-if="showFullImageModal" class="full-image-modal" @click="closeFullImage">
+      <div class="full-image-container">
+        <img :src="message.content" :alt="'Image shared by ' + message.sender.username" />
+        <button class="close-button" @click="closeFullImage">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -144,6 +170,12 @@ export default {
     isMessageMenuOpen: {
       type: Boolean,
       default: false
+    }
+  },
+  data() {
+    return {
+      showFullImageModal: false,
+      imageError: false
     }
   },
   computed: {
@@ -173,8 +205,24 @@ export default {
       return 'Media'
     },
     openMessageMenu(event) {
-      // Emetti un evento per aprire/chiudere il menu del messaggio
       this.$emit('open-message-menu', this.message, event)
+    },
+    showFullImage() {
+      this.showFullImageModal = true
+      document.body.style.overflow = 'hidden'
+    },
+    closeFullImage() {
+      this.showFullImageModal = false
+      document.body.style.overflow = 'auto'
+    },
+    handleImageLoad(event) {
+      this.imageError = false;
+      console.log('Immagine caricata:', this.message);
+      this.$emit('media-loaded');
+    },
+    handleImageError(event) {
+      this.imageError = true;
+      console.error('Errore nel caricamento dell\'immagine:', this.message.content);
     }
   }
 }
@@ -190,6 +238,10 @@ export default {
 
 .message-wrapper.sent {
   margin-left: auto;
+}
+
+.message-wrapper.media-message {
+  max-width: 85%;
 }
 
 .message {
@@ -228,10 +280,24 @@ export default {
   line-height: 19px;
 }
 
+.media-container {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
 .message-media {
   max-width: 100%;
-  border-radius: 4px;
-  cursor: pointer;
+  max-height: 300px;
+  display: block;
+  object-fit: contain;
+  border-radius: 6px;
+  transition: transform 0.2s ease;
+}
+
+.message-media:hover {
+  transform: scale(0.99);
 }
 
 .quoted-message {
@@ -254,7 +320,13 @@ export default {
   opacity: 0.7;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.quoted-media {
+  max-width: 50px;
+  max-height: 50px;
+  border-radius: 4px;
+  margin-top: 4px;
 }
 
 .comments-badge {
@@ -373,5 +445,49 @@ export default {
 
 .menu-item.delete i {
   color: #f15c6d;
+}
+
+/* Modal immagine a schermo intero */
+.full-image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.full-image-container {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.full-image-container img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.close-button {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 </style>

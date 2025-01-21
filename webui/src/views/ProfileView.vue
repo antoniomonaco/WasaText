@@ -1,137 +1,248 @@
 <!-- ProfileView.vue -->
 <template>
-    <header>
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    </header>
-    <div class="profile-container">
-      <div class="profile-card">
-        <div class="profile-header">
-          <button class="back-button" @click="$router.push('/')">
-            <i class="fas fa-arrow-left"></i>
-          </button>
-          <h2>Il tuo profilo</h2>
-        </div>
-  
-        <div class="profile-content">
-          <!-- Photo Section -->
-          <div class="photo-section">
-            <div class="photo-container">
-              <img 
-                :src="previewPhotoUrl || currentUser.photoUrl || '/default-avatar.jpeg'" 
-                :alt="currentUser.username"
-                class="profile-photo"
-              />
-              <div class="photo-overlay">
-                <button class="change-photo-button" @click="$refs.photoInput.click()">
-                  <i class="fas fa-camera"></i>
-                </button>
-              </div>
-            </div>
-            <input 
-              ref="photoInput"
-              type="url"
-              v-model="photoUrl"
-              placeholder="Inserisci l'URL della foto"
-              class="photo-input"
+  <header>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  </header>
+  <div class="profile-container">
+    <div class="profile-card">
+      <div class="profile-header">
+        <button class="back-button" @click="$router.push('/')">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <h2>Il tuo profilo</h2>
+      </div>
+
+      <div class="profile-content">
+        <!-- Photo Section -->
+        <div class="photo-section">
+          <div class="photo-container">
+            <img 
+              :src="previewPhotoUrl || currentUser.photoUrl || '/default-avatar.jpeg'" 
+              :alt="currentUser.username"
+              class="profile-photo"
             />
-            <div class="photo-actions" v-if="photoUrl !== currentUser.photoUrl">
-              <button 
-                class="action-button save"
-                @click="updatePhoto"
-                :disabled="!isValidUrl(photoUrl)"
-              >
-                Salva foto
-              </button>
-              <button 
-                class="action-button cancel"
-                @click="cancelPhotoUpdate"
-              >
-                Annulla
+            <div class="photo-overlay">
+              <button class="change-photo-button" @click="$refs.fileInput.click()">
+                <i class="fas fa-camera"></i>
               </button>
             </div>
           </div>
-  
-          <!-- Username Section -->
-          <div class="username-section">
-            <label for="username">Nome utente</label>
-            <div class="username-input-container">
-              <input 
-                id="username"
-                type="text"
-                v-model="username"
-                :placeholder="currentUser.username"
-                class="username-input"
-                @input="validateUsername"
-              />
-              <button 
-                v-if="username !== currentUser.username && !usernameError"
-                class="save-username-button"
-                @click="updateUsername"
-              >
-                <i class="fas fa-check"></i>
-              </button>
-            </div>
-            <span class="error-message" v-if="usernameError">
-              {{ usernameError }}
-            </span>
+
+          <!-- Input nascosto per il file -->
+          <input 
+            ref="fileInput"
+            type="file"
+            @change="handleFileUpload"
+            accept="image/*"
+            class="file-input"
+          />
+
+          <!-- Input URL opzionale -->
+          <div class="upload-options">
+            <button 
+              class="option-button"
+              :class="{ 'active': uploadMode === 'url' }"
+              @click="uploadMode = 'url'"
+            >
+              Usa URL
+            </button>
+            <button 
+              class="option-button"
+              :class="{ 'active': uploadMode === 'file' }"
+              @click="uploadMode = 'file'"
+            >
+              Carica file
+            </button>
           </div>
-  
-          <!-- Account Info -->
-          <div class="account-info">
-            <h3>Informazioni account</h3>
-            <p class="info-item">
-              <span class="info-label">ID Account:</span>
-              <span class="info-value">{{ currentUserId }}</span>
-            </p>
+
+          <input 
+            v-if="uploadMode === 'url'"
+            type="url"
+            v-model="photoUrl"
+            placeholder="Inserisci l'URL della foto"
+            class="photo-input"
+          />
+
+          <div v-if="showSizeWarning" class="error-message">
+            Immagine troppo grande! Dimensione massima: 5MB
+          </div>
+
+          <div class="photo-actions" v-if="hasChanges">
+            <button 
+              class="action-button save"
+              @click="updatePhoto"
+              :disabled="!canSave"
+            >
+              Salva foto
+            </button>
+            <button 
+              class="action-button cancel"
+              @click="cancelPhotoUpdate"
+            >
+              Annulla
+            </button>
           </div>
         </div>
-  
-        <!-- Notifications for actions -->
-        <div 
-          v-if="notification"
-          class="notification"
-          :class="notification.type"
-        >
-          {{ notification.message }}
+
+        <!-- Username Section -->
+        <div class="username-section">
+          <label for="username">Nome utente</label>
+          <div class="username-input-container">
+            <input 
+              id="username"
+              type="text"
+              v-model="username"
+              :placeholder="currentUser.username"
+              class="username-input"
+              @input="validateUsername"
+            />
+            <button 
+              v-if="username !== currentUser.username && !usernameError"
+              class="save-username-button"
+              @click="updateUsername"
+            >
+              <i class="fas fa-check"></i>
+            </button>
+          </div>
+          <span class="error-message" v-if="usernameError">
+            {{ usernameError }}
+          </span>
+        </div>
+
+        <!-- Account Info -->
+        <div class="account-info">
+          <h3>Informazioni account</h3>
+          <p class="info-item">
+            <span class="info-label">ID Account:</span>
+            <span class="info-value">{{ currentUserId }}</span>
+          </p>
         </div>
       </div>
+
+      <!-- Notifications -->
+      <div 
+        v-if="notification"
+        class="notification"
+        :class="notification.type"
+      >
+        {{ notification.message }}
+      </div>
     </div>
-  </template>
-  
+  </div>
+</template>
+
 <script>
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
 export default {
   name: 'ProfileView',
   data() {
     return {
-        currentUser: {
-            id: Number(localStorage.getItem('authToken')),
-            username: localStorage.getItem('username') || '',
-            photoUrl: ''
-        },
+      currentUser: {
+        id: Number(localStorage.getItem('authToken')),
         username: localStorage.getItem('username') || '',
-        photoUrl: '',
-        previewPhotoUrl: '',
-        usernameError: '',
-        notification: null,
-        currentUserId: Number(localStorage.getItem('authToken')),
-        accountCreationDate: new Date()
+        photoUrl: ''
+      },
+      username: localStorage.getItem('username') || '',
+      photoUrl: '',
+      previewPhotoUrl: '',
+      photoBase64: null,
+      usernameError: '',
+      notification: null,
+      currentUserId: Number(localStorage.getItem('authToken')),
+      uploadMode: 'file',
+      showSizeWarning: false,
+      isProcessingImage: false
+    }
+  },
+  computed: {
+    hasChanges() {
+      return (this.photoUrl && this.photoUrl !== this.currentUser.photoUrl) || 
+             (this.photoBase64 !== null);
+    },
+    canSave() {
+      return (this.uploadMode === 'url' && this.isValidUrl(this.photoUrl)) ||
+             (this.uploadMode === 'file' && this.photoBase64 !== null);
     }
   },
   methods: {
-    async fetchUserProfile() {
-      try {
-        const response = await this.$axios.get('/users/me', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`
-          }
-        });
-        
-        this.currentUser = response.data;
-        this.username = this.currentUser.username;
-        this.photoUrl = this.currentUser.photoUrl;
-      } catch (error) {
-        console.error('Errore nel recupero del profilo:', error);
+    async handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Verifica dimensione
+      if (file.size > MAX_FILE_SIZE) {
+        this.showSizeWarning = true;
+        setTimeout(() => {
+          this.showSizeWarning = false;
+        }, 3000);
+        return;
       }
+
+      this.isProcessingImage = true;
+      this.showSizeWarning = false;
+
+      try {
+        // Converti in base64
+        this.photoBase64 = await this.convertToBase64(file);
+        this.previewPhotoUrl = this.photoBase64;
+        this.uploadMode = 'file';
+      } catch (error) {
+        console.error('Errore nella conversione dell\'immagine:', error);
+      } finally {
+        this.isProcessingImage = false;
+      }
+
+      // Reset input file
+      event.target.value = '';
+    },
+
+    convertToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+      });
+    },
+
+    async updatePhoto() {
+      if (!this.canSave) return;
+
+      try {
+        const photoUrlToSave = this.uploadMode === 'file' ? this.photoBase64 : this.photoUrl;
+        
+        await this.$axios.put(
+          '/users/me/photo',
+          { photoUrl: photoUrlToSave },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            }
+          }
+        );
+        
+        localStorage.setItem('userPhoto', photoUrlToSave);
+        this.currentUser.photoUrl = photoUrlToSave;
+        
+        window.dispatchEvent(new Event('userProfileUpdated'));
+        this.showNotification('Foto profilo aggiornata con successo', 'success');
+        
+        // Reset dello stato
+        this.photoUrl = '';
+        this.photoBase64 = null;
+        this.uploadMode = 'file';
+      } catch (error) {
+        this.showNotification('Errore nell\'aggiornamento della foto profilo', 'error');
+      }
+    },
+
+    cancelPhotoUpdate() {
+      this.photoUrl = '';
+      this.photoBase64 = null;
+      this.previewPhotoUrl = this.currentUser.photoUrl;
+      this.uploadMode = 'file';
+      this.showSizeWarning = false;
     },
 
     validateUsername() {
@@ -157,30 +268,36 @@ export default {
     },
 
     async updateUsername() {
-        if (!this.validateUsername()) return;
+      if (!this.validateUsername()) return;
 
-        try {
-            await this.$axios.put(
-                '/users/me/name',
-                this.username,
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem('authToken')}`
-                    }
-                }
-            );
-            
-            // Aggiorno il nome utente nel localStorage
-            localStorage.setItem('username', this.username);
-            this.currentUser.username = this.username;
-            this.showNotification('Nome utente aggiornato con successo', 'success');
-        } catch (error) {
-            if (error.response?.status === 409) {
-                this.usernameError = 'Nome utente già in uso';
-            } else {
-                this.showNotification('Errore nell\'aggiornamento del nome utente', 'error');
+      try {
+        await this.$axios.put(
+          '/users/me/name',
+          { name: this.username },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`
             }
+          }
+        );
+        
+        localStorage.setItem('username', this.username);
+        this.currentUser.username = this.username;
+        this.showNotification('Nome utente aggiornato con successo', 'success');
+      } catch (error) {
+        if (error.response?.status === 409) {
+          this.usernameError = 'Nome utente già in uso';
+        } else {
+          this.showNotification('Errore nell\'aggiornamento del nome utente', 'error');
         }
+      }
+    },
+
+    showNotification(message, type = 'info') {
+      this.notification = { message, type };
+      setTimeout(() => {
+        this.notification = null;
+      }, 3000);
     },
 
     isValidUrl(url) {
@@ -193,53 +310,21 @@ export default {
       }
     },
 
-    async updatePhoto() {
-        if (!this.isValidUrl(this.photoUrl)) {
-            this.showNotification('URL della foto non valido', 'error');
-            return;
-        }
-
-        try {
-            await this.$axios.put(
-                '/users/me/photo',
-                { photoUrl: this.photoUrl },
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem('authToken')}`
-                    }
-                }
-            );
-            
-            localStorage.setItem('userPhoto', this.photoUrl);
-            this.currentUser.photoUrl = this.photoUrl;
-
-            // Notifico gli altri componenti del cambiamento
-            window.dispatchEvent(new Event('userProfileUpdated'));
-
-            this.showNotification('Foto profilo aggiornata con successo', 'success');
-        } catch (error) {
-            this.showNotification('Errore nell\'aggiornamento della foto profilo', 'error');
-        }
-    },
-
-    cancelPhotoUpdate() {
-      this.photoUrl = this.currentUser.photoUrl;
-      this.previewPhotoUrl = '';
-    },
-
-    showNotification(message, type = 'info') {
-      this.notification = { message, type };
-      setTimeout(() => {
-        this.notification = null;
-      }, 3000);
-    },
-
-    formatDate(date) {
-      return new Date(date).toLocaleDateString('it-IT', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+    async fetchUserProfile() {
+      try {
+        const response = await this.$axios.get('/users/me', {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+          }
+        });
+        
+        this.currentUser = response.data;
+        this.username = this.currentUser.username;
+        this.photoUrl = this.currentUser.photoUrl;
+        this.previewPhotoUrl = this.currentUser.photoUrl;
+      } catch (error) {
+        console.error('Errore nel recupero del profilo:', error);
+      }
     }
   },
   created() {
@@ -247,10 +332,8 @@ export default {
   },
   watch: {
     photoUrl(newUrl) {
-      if (this.isValidUrl(newUrl)) {
+      if (this.uploadMode === 'url' && this.isValidUrl(newUrl)) {
         this.previewPhotoUrl = newUrl;
-      } else {
-        this.previewPhotoUrl = '';
       }
     }
   }
@@ -500,7 +583,31 @@ export default {
   background-color: #f15c6d;
   color: white;
 }
+.file-input {
+  display: none;
+}
 
+.upload-options {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.option-button {
+  flex: 1;
+  background-color: #2a3942;
+  border: none;
+  color: #8696a0;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-button.active {
+  background-color: #00a884;
+  color: #fff;
+}
 @keyframes slideUp {
   from {
     transform: translate(-50%, 20px);
