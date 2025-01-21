@@ -138,10 +138,12 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 		}
 		messages = append(messages, message)
 	}
-	if messages == nil {
-		http.Error(w, "Conversazione non trovata", http.StatusNotFound)
-		return
-	}
+	/*
+		if messages == nil {
+			http.Error(w, "Conversazione non trovata", http.StatusNotFound)
+			return
+		}
+	*/
 	infoRows, err := rt.db.RetrieveConversationInfo(conversationID)
 	if err != nil {
 		http.Error(w, "Errore durante il recupero delle informazioni della conversazione", http.StatusInternalServerError)

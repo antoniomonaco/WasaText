@@ -32,7 +32,7 @@
           class="participant-item"
         >
           <img 
-            :src="participant.photoUrl || '/api/placeholder/40/40'" 
+            :src="participant.photoUrl || '/default-avatar.jpeg'" 
             :alt="participant.username"
             class="participant-avatar"
           />

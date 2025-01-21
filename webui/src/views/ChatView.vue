@@ -132,6 +132,7 @@
         <div class="users-list">
           <div 
             v-for="user in filteredUsers" 
+            
             :key="user.id"
             class="user-item"
             @click="addParticipant(user)"
@@ -143,6 +144,9 @@
             />
             <span class="user-name">{{ user.username }}</span>
           </div>
+        </div>
+        <div v-if="filteredUsers.length === 0" class="no-participants">
+          Non ci sono altri utenti da aggiungere.
         </div>
       </div>
     </BaseModal>
@@ -235,7 +239,11 @@ export default {
       return this.conversation?.type === 'group'
     },
     filteredUsers() {
-      if (!this.userSearchQuery) return this.users
+      if (!this.userSearchQuery) {
+        return this.users.filter(user => 
+          !this.conversation.participants.some(participant => participant.id === user.id)
+        );
+      }
 
       const query = this.userSearchQuery.toLowerCase()
       return this.users.filter(user => 
@@ -293,8 +301,6 @@ export default {
       if (messagePayload.replyTo) {
         messageData.replyTo = messagePayload.replyTo
       }
-
-      console.log('Sending message:', messageData); // Debug log
 
       this.$axios.post(
         `/conversations/${this.conversationID}`,
@@ -743,4 +749,15 @@ export default {
   color: #e9edef;
   font-size: 16px;
 }
+
+.no-participants {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: #8696a0;
+    text-align: center;
+    padding: 20px;
+  }
 </style>

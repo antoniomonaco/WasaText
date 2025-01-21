@@ -7,12 +7,17 @@
     <div class="conversations-panel">
       <!-- Header della sidebar -->
       <div class="sidebar-header">
-        <div class="user-avatar">
-          <img 
-            :src="currentUser?.photoUrl || '/default-avatar.jpeg'" 
-            :alt="currentUser?.username"
-            class="avatar-img"
-          />
+        <div class = "user-info">
+          <div class="user-avatar">
+            <img 
+              :src="currentUser?.photoUrl || '/default-avatar.jpeg'" 
+              :alt="currentUser?.username"
+              class="avatar-img"
+            />
+          </div>
+          <div class="user-name">
+            {{currentUser?.username}}
+          </div>
         </div>
         <div class="header-actions">
           <button class="icon-button" @click="handleNewChat">
@@ -69,49 +74,26 @@
       </div>
     </div>
 
-    <!-- Modal per nuova chat -->
-    <div v-if="showNewChatModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Nuova chat</h3>
-          <button class="close-button" @click="showNewChatModal = false">×</button>
-        </div>
-        <div class="modal-body">
-          <input 
-            type="text" 
-            placeholder="Cerca un utente"
-            v-model="newChatSearch"
-            class="search-input"
-          />
-          <div class="users-list">
-            <div 
-              v-for="user in filteredUsers" 
-              :key="user.id"
-              class="user-item"
-              @click="startNewChat(user.id)"
-            >
-              <img 
-                :src="user.photoUrl || '/default-avatar.jpeg'" 
-                alt="User avatar" 
-                class="user-avatar"
-              />
-              <span class="user-name">{{ user.username }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Modal per nuova chat/gruppo -->
+    <NewChatModal 
+      v-if="showNewChatModal"
+      :users="users"
+      @close="showNewChatModal = false"
+      @create="createConversation"
+    />
   </div>
 </template>
 
 <script>
 import ConversationsView from './ConversationsView.vue'
 import ChatView from './ChatView.vue'
+import NewChatModal from '@/components/NewChatModal.vue'
 
 export default {
   components: {
     ConversationsView,
     ChatView,
+    NewChatModal
   },
   data() {
     return {
@@ -119,19 +101,9 @@ export default {
       searchQuery: '',
       showUserMenu: false,
       showNewChatModal: false,
-      newChatSearch: '',
       users: [],
       currentUser: null,
       pollingInterval : null
-    }
-  },
-  computed: {
-    filteredUsers() {
-      if (!this.newChatSearch) return this.users
-      const query = this.newChatSearch.toLowerCase()
-      return this.users.filter(user => 
-        user.username.toLowerCase().includes(query)
-      )
     }
   },
   async created() {
@@ -139,7 +111,6 @@ export default {
     this.startPolling();
     window.addEventListener('userProfileUpdated', this.refreshUserData);
   },
-
   beforeUnmount() {
     this.stopPolling();
     window.removeEventListener('userProfileUpdated', this.refreshUserData);
@@ -158,8 +129,10 @@ export default {
       }
     },
     async selectConversation(conversationId) {
-      this.selectedConversationId = conversationId
-      this.showUserMenu = false
+      if (conversationId) {
+        this.selectedConversationId = conversationId;
+        this.showUserMenu = false;
+      }
     },
     handleConversationDeleted(deletedConversationId) {
       if (this.selectedConversationId === deletedConversationId) {
@@ -182,20 +155,44 @@ export default {
         console.error('Errore nel recupero degli utenti:', error)
       }
     },
-    async startNewChat(userId) {
+    async createConversation(data) {
+      console.log('Received conversation data:', data);
       try {
-        const response = await this.$axios.post('/conversations/', {
-          type: 'chat',
-          participants: [userId]
-        }, {
+        if (!data.type || !data.participants || !data.participants.length) {
+          console.error('Dati conversazione non validi:', data);
+          return;
+        }
+
+        const payload = {
+          type: data.type,
+          participants: data.participants,
+        };
+
+        if (data.type === 'group') {
+          payload.name = data.name;
+          if (data.photoUrl) {
+            payload.photoUrl = data.photoUrl;
+          }
+        }
+
+        console.log('Sending payload:', payload);
+        const response = await this.$axios.post('/conversations/', payload, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`
           }
-        })
-        this.showNewChatModal = false
-        this.selectConversation(response.data.id)
+        });
+        
+        console.log('Server response:', response.data);
+        
+        if (response.data && response.data.conversation_id) { 
+          this.showNewChatModal = false;
+          await this.$nextTick();
+          this.selectedConversationId = response.data.conversation_id; 
+        } else {
+          console.error('Response missing conversation ID:', response.data);
+        }
       } catch (error) {
-        console.error('Errore nella creazione della chat:', error)
+        console.error('Errore nella creazione della conversazione:', error.response || error);
       }
     },
     handleProfileSettings() {
@@ -209,7 +206,6 @@ export default {
     startPolling() {
       this.pollingInterval = setInterval(this.refreshUserData, 5000);
     },
-
     stopPolling() {
       if (this.pollingInterval) {
         clearInterval(this.pollingInterval);
@@ -355,76 +351,14 @@ export default {
   margin-bottom: 20px;
 }
 
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: #233138;
-  width: 400px;
-  border-radius: 3px;
-}
-
-.modal-header {
-  padding: 16px;
-  border-bottom: 1px solid #2a3942;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  color: #d1d7db;
-  margin: 0;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  color: #aebac1;
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.modal-body {
-  padding: 16px;
-}
-
-.users-list {
-  margin-top: 16px;
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.user-item {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  cursor: pointer;
-  color: #d1d7db;
-}
-
-.user-item:hover {
-  background-color: #182229;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  margin-right: 12px;
-}
-
 .user-name {
+  color: #e9edef;
   font-size: 16px;
+  font-weight: 500;
+  margin-left: 10px; 
+}
+.user-info { 
+  display: flex;
+  align-items: center; 
 }
 </style>
