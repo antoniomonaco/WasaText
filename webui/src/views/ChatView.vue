@@ -213,7 +213,11 @@ export default {
       // Stato dei partecipanti
       isLoadingParticipants: false,
       userSearchQuery: '',
-      users: []
+      users: [],
+
+      pollingInterval : null,
+      isNearBottom: true,
+      scrollThreshold: 100, // pixel dal basso che permettono la chiamata a scrollToBottom()
     }
   },
   computed: {
@@ -276,22 +280,25 @@ export default {
               Authorization: `Bearer ${localStorage.getItem('authToken')}`
             }
           }
-        )
+        );
         
-        this.conversation = response.data.conversation
-        this.messages = response.data.messages
+        const oldMessagesLength = this.messages.length;
+        this.conversation = response.data.conversation;
+        this.messages = response.data.messages;
         
-        this.$nextTick(() => {
-          this.scrollToBottom()
-          this.markMessagesAsRead()
-        })
+        // Fa lo scroll solo se ci sono nuovi messaggi
+        if (this.messages.length > oldMessagesLength) {
+          this.$nextTick(() => {
+            this.scrollToBottom();
+            this.markMessagesAsRead();
+          });
+        }
       } catch (error) {
-        console.error('Errore nel recupero della conversazione:', error)
+        console.error('Errore nel recupero della conversazione:', error);
       }
     },
 
     // Metodi di gestione messaggi
-// Metodi di gestione messaggi
     sendMessage(messagePayload) {
       const messageData = {
         type: messagePayload.type || 'text', 
@@ -353,10 +360,17 @@ export default {
     },
     mounted() {
       document.addEventListener('click', this.handleOutsideClick)
+      const container = this.$refs.messagesContainer;
+      if (container) {
+        container.addEventListener('scroll', this.handleScroll);
+      }
     },
 
     beforeUnmount() {
       document.removeEventListener('click', this.handleOutsideClick)
+      if (container) {
+        container.removeEventListener('scroll', this.handleScroll);
+      }
     },
 
     handleOutsideClick(event) {
@@ -470,12 +484,36 @@ export default {
       this.isLoadingConversations = true
 
       try {
-        const response = await this.$axios.get('/conversations/', {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`
-          }
-        })
-        this.forwardingConversations = response.data
+        const [conversationsRes, usersRes] = await Promise.all([
+          this.$axios.get('/conversations/', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+          }),
+          this.$axios.get('/users/', {
+            headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+          })
+        ]);
+
+        // Filtro gli utenti che sono già nelle conversazioni
+        const existingUserIds = new Set(
+          conversationsRes.data
+            .filter(conv => conv.type === 'chat')
+            .map(conv => conv.participants.find(p => p.id !== this.currentUserId)?.id)
+        );
+
+        const newUsers = usersRes.data.filter(
+          user => user.id !== this.currentUserId && !existingUserIds.has(user.id)
+        );
+
+        this.forwardingConversations = [
+          ...conversationsRes.data,
+          ...newUsers.map(user => ({
+            isNewChat: true,
+            type: 'chat',
+            participants: [user],
+            name: user.username,
+            photoUrl: user.photoUrl
+          }))
+        ];
       } catch (error) {
         console.error('Errore nel recupero delle conversazioni:', error)
       } finally {
@@ -483,18 +521,34 @@ export default {
       }
     },
 
-    async confirmForward(targetConversationId) {
+    async confirmForward(target) {
       try {
+        let targetConversationId = target;
+        
+        // Se il target è un utente, creo prima la conversazione
+        if (typeof target === 'object' && target.isNewChat) {
+          const createConvRes = await this.$axios.post(
+            '/conversations/',
+            {
+              type: 'chat',
+              participants: [target.participants[0].id]
+            },
+            {
+              headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+            }
+          );
+          targetConversationId = createConvRes.data.conversation_id;
+        }
+
+        // Faccio il forward 
         await this.$axios.post(
           `/conversations/${this.conversationID}/messages/${this.messageToForward.id}`,
-          { targetConversationId },
+          { id: targetConversationId },
           {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('authToken')}`
-            }
+            headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
           }
         )
-        
+
         this.closeForwardModal()
       } catch (error) {
         console.error('Errore nell\'inoltrare il messaggio:', error)
@@ -635,27 +689,54 @@ export default {
     },
 
     // Metodi di navigazione e scrolling
+    handleScroll() {
+      const container = this.$refs.messagesContainer;
+      if (!container) return;
+      
+      // Calcola se simao vicini al fondo della chat
+      const distanceFromBottom = 
+        container.scrollHeight - 
+        (container.scrollTop + container.clientHeight);
+      
+      this.isNearBottom = distanceFromBottom <= this.scrollThreshold;
+    },
+
     scrollToBottom() {
       this.$nextTick(() => {
-        const container = this.$refs.messagesContainer
-        if (container) {
-          container.scrollTop = container.scrollHeight
+        const container = this.$refs.messagesContainer;
+        if (container && this.isNearBottom) {
+          container.scrollTop = container.scrollHeight;
         }
-      })
+      });
+    },
+    startPolling() {
+        this.pollingInterval = setInterval(this.fetchConversation, 1000);
+      },
+
+    stopPolling() {
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval);
+        this.pollingInterval = null;
+      }
     }
   },
   
-  created() {
-    this.fetchConversation()
+  async created() {
+    await this.fetchConversation();
+    this.startPolling();
   },
 
+  beforeUnmount() {
+    this.stopPolling();
+  },
+  
   // Watcher per gestire cambiamenti nella conversazione
   watch: {
     conversationID: {
       immediate: true,
-      handler(newId) {
+      async handler(newId) {
         if (newId) {
-          this.fetchConversation()
+          await this.fetchConversation();
         }
       }
     }
