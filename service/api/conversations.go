@@ -12,6 +12,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+const chat = "chat"
+const group = "group"
+
 // getMyConversations gestisce la richiesta per ottenere tutte le conversazioni dell'utente.
 // Restituisce una lista di conversazioni.
 func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
@@ -80,7 +83,7 @@ func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps
 		}
 
 		// Gestione chat private
-		if conversation.Type == "chat" && len(conversation.Participants) > 0 {
+		if conversation.Type == chat && len(conversation.Participants) > 0 {
 			for _, participant := range conversation.Participants {
 				if participant.ID != userID {
 					conversation.Name = participant.Username
@@ -107,6 +110,11 @@ func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps
 		}
 
 		conversations = append(conversations, conversation)
+	}
+
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -137,6 +145,10 @@ func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps ht
 			return
 		}
 		messages = append(messages, message)
+	}
+	if err := messageRows.Err(); err != nil {
+		http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+		return
 	}
 	/*
 		if messages == nil {
@@ -202,7 +214,7 @@ func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps
 
 	// Decodifica del payload JSON
 	var request struct {
-		Type         string `json:"type"`         // "chat" o "group"
+		Type         string `json:"type"`         // chat o "group"
 		Participants []int  `json:"participants"` // Array di ID utenti
 		Name         string `json:"name"`         // Nome per il gruppo (opzionale)
 		PhotoUrl     string `json:"photoUrl"`     // URL immagine (opzionale)
@@ -214,12 +226,12 @@ func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	if request.Type != "chat" && request.Type != "group" {
+	if request.Type != chat && request.Type != group {
 		http.Error(w, "Devi scegliere un tipo tra 'chat' o 'group'", http.StatusBadRequest)
 		return
 	}
 
-	if request.Name == "" && request.Type == "group" {
+	if request.Name == "" && request.Type == group {
 		http.Error(w, "Devi impostare un nome per il gruppo", http.StatusBadRequest)
 		return
 	}
@@ -229,12 +241,12 @@ func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	if request.Name != "" && request.Type == "chat" {
+	if request.Name != "" && request.Type == chat {
 		http.Error(w, "Non puoi impostare il nome ad una chat privata", http.StatusBadRequest)
 		return
 	}
 
-	if request.PhotoUrl != "" && request.Type == "chat" {
+	if request.PhotoUrl != "" && request.Type == chat {
 		http.Error(w, "Non puoi impostare la foto ad una chat privata", http.StatusBadRequest)
 		return
 	}
@@ -252,7 +264,7 @@ func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps
 		participants = append(participants, p)
 	}
 
-	if request.Type == "chat" && len(participants) != 2 {
+	if request.Type == chat && len(participants) != 2 {
 		http.Error(w, "Una chat privata deve avere esattamente due partecipanti", http.StatusBadRequest)
 		return
 	}
@@ -398,7 +410,7 @@ func (rt *_router) deleteMessage(w http.ResponseWriter, r *http.Request, ps http
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNoContent) //204
+	w.WriteHeader(http.StatusNoContent) // 204
 }
 
 func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
@@ -453,6 +465,10 @@ func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps htt
 			http.Error(w, "Errore durante la composizione del messaggio", http.StatusInternalServerError)
 			return
 		}
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+		return
 	}
 
 	if err != nil {

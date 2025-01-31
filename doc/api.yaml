@@ -346,7 +346,7 @@ paths:
                 $ref: "#/components/schemas/Message"
         '400':
           description: "Invalid request"
-    patch:
+    put:
       security:
         - bearerAuth: []
       tags: ["conversations"]
