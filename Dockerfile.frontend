@@ -1,0 +1,12 @@
+# [Istruzioni]
+# Creazione : $ docker build -f Dockerfile.frontend -t frontend:latest . 
+# Esecuzione : docker run -it --rm -p 8080:80  frontend:latest
+
+FROM node:lts as builder
+WORKDIR /src/
+COPY ./webui ./webui
+WORKDIR /src/webui/
+RUN npm run build-prod
+
+FROM nginx:stable
+COPY --from=builder /src/webui/dist /usr/share/nginx/html

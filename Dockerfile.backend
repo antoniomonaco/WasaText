@@ -1,0 +1,21 @@
+# [Istruzioni]
+# Creazione : docker build -f Dockerfile.backend -t backend::latest . 
+# Esecuzione : docker run -it --rm -p 3000:3000 backend:latest
+
+# Crea un'immagine temporanea "builder"
+FROM golang:1.19.1 AS builder
+# Copia il codice go (in "builder")
+WORKDIR /src/
+COPY . .
+# Crea l'eseguibile(in "builder")
+RUN go build -o /app/webapi ./cmd/webapi
+# Crea il container finale
+FROM debian:bookworm
+
+EXPOSE 3000
+#  Copia l'eseguibile dall'immagine "builder"
+WORKDIR /app/
+COPY --from=builder /app/webapi ./
+# Imposta il programma di default al backend go
+CMD ["/app/webapi"]
+
