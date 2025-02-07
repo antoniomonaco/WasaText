@@ -107,8 +107,11 @@ func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps
 					conversation.LatestMessage = message
 				}
 			}
+			if err := latestMessageRows.Err(); err != nil {
+				http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+				return
+			}
 		}
-
 		conversations = append(conversations, conversation)
 	}
 

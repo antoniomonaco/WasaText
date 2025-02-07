@@ -107,6 +107,10 @@ func (rt *_router) getComments(w http.ResponseWriter, r *http.Request, ps httpro
 		comment.Timestamp = t
 		comments = append(comments, comment)
 	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(comments)
