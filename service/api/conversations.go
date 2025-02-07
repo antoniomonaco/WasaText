@@ -592,6 +592,13 @@ func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
 		return message, err
 	}
 
+	parsedTime, err := time.Parse("2006-01-02 15:04:05", timestamp)
+	if err != nil {
+		http.Error(w, "errore durante il parsing del timestamp", http.StatusInternalServerError)
+		return message, err
+	}
+	parsedTime = parsedTime.Local()
+
 	message = Message{
 		ID:   messageID,
 		Type: messageType,
@@ -599,7 +606,7 @@ func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
 			ID:       senderID,
 			Username: username,
 		},
-		Timestamp: time.Now(),
+		Timestamp: parsedTime,
 		Status:    status,
 		Content:   content,
 		ReplyTo:   replyToID,
