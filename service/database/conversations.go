@@ -132,32 +132,31 @@ func (db *appdbimpl) RetrieveLatestMessage(conversationID int, userID int) (*sql
 	return rows, nil
 }
 
-func (db *appdbimpl) SendMessage(conversationID int, senderID int, messageType string, timestamp time.Time, status string, content string) (int, error) {
-	// Avvia una transazione
-	tx, err := db.c.Begin()
+func (db *appdbimpl) SendMessage(conversationID int, senderID int, messageType string, timestamp time.Time, status string, content string, replyTo int) (int, error) {
+	formattedTime := timestamp.Format("2006-01-02 15:04:05")
+	query := `INSERT INTO messages 
+            (conversation_id, sender_id, type, timestamp, status, content, reply_to) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+	result, err := db.c.Exec(query,
+		conversationID,
+		senderID,
+		messageType,
+		formattedTime,
+		status,
+		content,
+		replyTo)
+
 	if err != nil {
-		return 0, fmt.Errorf("errore durante l'avvio della transazione: %w", err)
+		return 0, fmt.Errorf("errore nell'inserimento del messaggio: %w", err)
 	}
 
-	// Inserisco il messaggio nella converszione
-	var messageID int64
-	result, err := tx.Exec(
-		"INSERT INTO messages (conversation_id, sender_id, type, timestamp, status, content) VALUES (?, ?, ?, ?, ?, ?)",
-		conversationID, senderID, messageType, timestamp, status, content,
-	)
+	id, err := result.LastInsertId()
 	if err != nil {
-		return 0, fmt.Errorf("errore durante l'inserimento del messaggio: %w", err)
-	}
-	messageID, err = result.LastInsertId()
-	if err != nil {
-		return 0, fmt.Errorf("errore durante il recupero dell'ID del messaggio: %w", err)
+		return 0, fmt.Errorf("errore nel recupero dell'ID del messaggio: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("errore durante il commit: %w", err)
-	}
-
-	return int(messageID), nil
+	return int(id), nil
 }
 
 func (db *appdbimpl) DeleteMessage(conversationID int, messageID int) error {
@@ -182,16 +181,16 @@ func (db *appdbimpl) DeleteMessage(conversationID int, messageID int) error {
 }
 
 func (db *appdbimpl) GetMessage(conversationID int, messageID int) (*sql.Rows, error) {
-	rows, err := db.c.Query(`
-	SELECT m.*,u.username
-	FROM messages m, users u
-	WHERE m.conversation_id = ? AND m.id = ? AND u.id = m.sender_id
-`, conversationID, messageID)
-
-	if err != nil {
-		return rows, fmt.Errorf("errore durante il recupero del messaggio : %w", err)
-	}
-	return rows, nil
+	query := `
+        SELECT 
+            m.id, m.conversation_id, m.sender_id, m.type, 
+            m.timestamp, m.status, m.content, m.reply_to,
+            u.username
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE m.conversation_id = ? AND m.id = ?
+    `
+	return db.c.Query(query, conversationID, messageID)
 }
 
 // Serve per verificare che l'utente faccia effettivamente parte della conversazione in modo che possa effettuare

@@ -121,6 +121,11 @@ components:
           maxLength: 255
           enum: ["received", "read"]
           example: "read"
+        replyTo:
+          description: "The id of the message we are replying to (0 if we are not replying)."
+          type: integer
+          example: 1
+          readOnly: true
       oneOf:
         - properties:
             content:
@@ -371,6 +376,26 @@ paths:
     parameters:
       - $ref: "#/components/parameters/ConversationId"
       - $ref: "#/components/parameters/MessageId"
+
+    get:
+      security:
+        - bearerAuth: []
+      tags: ["conversations"]
+      summary: "Retrieve a specific message"
+      operationId: GetMessage
+      description: "Retrieve a specific message"
+      responses:
+        "201":
+          description: "Message found!"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        '403':
+          description: "Operation not permitted"
+        '404':
+          description: "Message not found"
+
     post:
       security:
         - bearerAuth: []

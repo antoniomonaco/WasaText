@@ -26,6 +26,7 @@ func (rt *_router) Handler() http.Handler {
 	rt.router.POST("/conversations/:conversationID", rt.authMiddleware(rt.wrap(rt.sendMessage)))
 	rt.router.DELETE("/conversations/:conversationID/messages/:messageID", rt.authMiddleware(rt.wrap(rt.deleteMessage)))
 	rt.router.POST("/conversations/:conversationID/messages/:messageID", rt.authMiddleware(rt.wrap(rt.forwardMessage)))
+	rt.router.GET("/conversations/:conversationID/messages/:messageID", rt.authMiddleware(rt.wrap(rt.getMessage)))
 	rt.router.PUT("/conversations/:conversationID", rt.authMiddleware(rt.wrap(rt.markMessagesAsRead)))
 
 	// Group

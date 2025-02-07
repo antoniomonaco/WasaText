@@ -58,7 +58,7 @@ type AppDatabase interface {
 	RetrieveLatestMessage(conversationID int, userID int) (*sql.Rows, error)
 	IsUserParticipantOfConversation(conversationID int, userID int) (bool, error)
 	IsUserSenderOfMessage(conversationID int, userID int) (bool, error)
-	SendMessage(conversationID int, IDFromContext int, messageType string, timestamp time.Time, status string, content string) (int, error)
+	SendMessage(conversationID int, IDFromContext int, messageType string, timestamp time.Time, status string, content string, replyTo int) (int, error)
 	DeleteMessage(conversationID int, messageID int) error
 	GetMessage(conversationID int, messageID int) (*sql.Rows, error)
 	IsGroup(conversationID int) (bool, error)
@@ -113,7 +113,8 @@ func New(db *sql.DB) (AppDatabase, error) {
 			type TEXT NOT NULL CHECK (type IN ('text', 'media')),
 			timestamp TEXT NOT NULL,
 			status TEXT NOT NULL CHECK (status IN ('received', 'read')),
-			content TEXT
+			content TEXT,
+			reply_to INTEGER REFERENCES messages(id)
 		);
 
 		CREATE TABLE IF NOT EXISTS comments (

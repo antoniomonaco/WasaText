@@ -302,10 +302,9 @@ func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	// Verifico che l'utente sia un partecipante della conversazione.
 	isParticipant, err := rt.db.IsUserParticipantOfConversation(conversationID, IDFromContext)
 	if err != nil {
-		http.Error(w, "Errore durante la verifica dei partecipanti", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	if !isParticipant {
@@ -314,8 +313,9 @@ func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httpro
 	}
 
 	var request struct {
-		Type    string `json:"type"` // "media" o "text"
+		Type    string `json:"type"`
 		Content string `json:"content"`
+		ReplyTo int    `json:"replyTo"`
 	}
 
 	err = json.NewDecoder(r.Body).Decode(&request)
@@ -325,45 +325,109 @@ func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httpro
 	}
 
 	if request.Type != "media" && request.Type != "text" {
-		http.Error(w, "Il messaggio deve essere di tipo 'text' o 'media' ", http.StatusBadRequest)
+		http.Error(w, "Il messaggio deve essere di tipo 'text' o 'media'", http.StatusBadRequest)
 		return
 	}
 
 	/*
-		TODO: aggiungi la verifica dell'url dell'immagine ES:
+		var replyedMessage Message
 
-		if request.Type == "media" {
-			if !isValidURL(request.Content) {
-				http.Error(w, "Il contenuto deve essere un URL valido per il tipo 'media'", http.StatusBadRequest)
+		if request.ReplyTo > 0 {
+			rows, err := rt.db.GetMessage(conversationID, request.ReplyTo)
+			if err != nil {
+				http.Error(w, "Errore nel recupero del messaggio di risposta", http.StatusInternalServerError)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			defer rows.Close()
+
+			for rows.Next() {
+				replyedMessage, err = composeMessage(rows, w)
+				if err != nil {
+					http.Error(w, "Errore nella composizione del messaggio", http.StatusInternalServerError)
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
+			if err := rows.Err(); err != nil {
+				http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+				return
+			}
+
+
+		}
+
 	*/
 
 	timestamp := time.Now()
 	messageStatus := "received"
-	messageID, err := rt.db.SendMessage(conversationID, IDFromContext, request.Type, timestamp, messageStatus, request.Content)
+
+	messageID, err := rt.db.SendMessage(conversationID, IDFromContext, request.Type, timestamp, messageStatus, request.Content, request.ReplyTo)
 	if err != nil {
-		http.Error(w, "Errore durante l'invio del messaggio", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	user, err := composeUserFromID(IDFromContext, rt.db)
+	rows, err := rt.db.GetMessage(conversationID, messageID)
 	if err != nil {
-		http.Error(w, "Errore durante la composizione dell'utente", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		http.Error(w, "Messaggio non trovato dopo la creazione", http.StatusInternalServerError)
+		return
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
 		return
 	}
 
-	message := Message{
-		ID:        messageID,
-		Type:      request.Type,
-		Sender:    user,
-		Timestamp: timestamp,
-		Status:    messageStatus,
-		Content:   request.Content,
+	message, err := composeMessage(rows, w)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated) // 201
+	w.WriteHeader(http.StatusCreated)
+
+	/*
+
+		if request.ReplyTo > 0 {
+			response := struct {
+				ID        int       `json:"id"`
+				Type      string    `json:"type"`
+				Sender    User      `json:"sender"`
+				Timestamp time.Time `json:"timestamp"`
+				Status    string    `json:"status"`
+				Content   string    `json:"content"`
+				ReplyTo   Message   `json:"replyTo"`
+			}{
+				ID:        conversationID,
+				Type:      message.Type,
+				Sender:    message.Sender,
+				Timestamp: message.Timestamp,
+				Status:    message.Status,
+				Content:   message.Content,
+				ReplyTo:   replyedMessage,
+			}
+
+			// In questa response includo direttamente il messaggio a cui si risponde, se c'è, così facilito il frontend
+
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+				return
+			}
+		}
+		err = json.NewEncoder(w).Encode(message)
+		if err != nil {
+			http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
+			return
+		}
+	*/
 	err = json.NewEncoder(w).Encode(message)
 	if err != nil {
 		http.Error(w, "Errore nella codifica della risposta", http.StatusInternalServerError)
@@ -480,7 +544,7 @@ func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps htt
 	}
 	message.Timestamp = time.Now()
 	message.Status = "received"
-	newMessageID, err := rt.db.SendMessage(request.TargetConversationID, IDFromContext, message.Type, message.Timestamp, message.Status, message.Content)
+	newMessageID, err := rt.db.SendMessage(request.TargetConversationID, IDFromContext, message.Type, message.Timestamp, message.Status, message.Content, 0)
 	if err != nil {
 		http.Error(w, "Errore nell'invio del messaggio", http.StatusInternalServerError)
 		return
@@ -507,22 +571,26 @@ func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps htt
 
 func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
 	var message Message
+	var messageID, conversationID, senderID int
+	var messageType, timestamp, status, content, username string
+	var replyToID int
 
-	var messageID int
-	var conversationID int
-	var senderID int
-	var messageType string
-	var timestamp string
-	var status string
-	var content string
-	var username string
-
-	err := rows.Scan(&messageID, &conversationID, &senderID, &messageType, &timestamp, &status, &content, &username)
+	err := rows.Scan(
+		&messageID,
+		&conversationID,
+		&senderID,
+		&messageType,
+		&timestamp,
+		&status,
+		&content,
+		&replyToID,
+		&username,
+	)
 	if err != nil {
-		http.Error(w, "Errore durante la lettura dei messaggi", http.StatusInternalServerError)
+		http.Error(w, "errore durante lo scan del messaggio", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return message, err
 	}
-	t, _ := time.Parse(time.RFC3339, timestamp)
 
 	message = Message{
 		ID:   messageID,
@@ -531,14 +599,14 @@ func composeMessage(rows *sql.Rows, w http.ResponseWriter) (Message, error) {
 			ID:       senderID,
 			Username: username,
 		},
-		Timestamp: t,
+		Timestamp: time.Now(),
 		Status:    status,
 		Content:   content,
+		ReplyTo:   replyToID,
 	}
 
 	return message, nil
 }
-
 func (rt *_router) markMessagesAsRead(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID := reqcontext.UserIDFromContext(r.Context())
 	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
@@ -566,4 +634,53 @@ func (rt *_router) markMessagesAsRead(w http.ResponseWriter, r *http.Request, ps
 	}
 
 	w.WriteHeader(http.StatusNoContent) // 204 No Content
+}
+func (rt *_router) getMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID := reqcontext.UserIDFromContext(r.Context())
+	conversationID, err := strconv.Atoi(ps.ByName("conversationID"))
+	if err != nil {
+		http.Error(w, "Invalid conversation ID", http.StatusBadRequest)
+		return
+	}
+
+	messageID, err := strconv.Atoi(ps.ByName("messageID"))
+	if err != nil {
+		http.Error(w, "Invalid message ID", http.StatusBadRequest)
+		return
+	}
+
+	isParticipant, err := rt.db.IsUserParticipantOfConversation(conversationID, userID)
+	if err != nil {
+		http.Error(w, "Error verifying participation", http.StatusInternalServerError)
+		return
+	}
+	if !isParticipant {
+		http.Error(w, "Unauthorized access", http.StatusForbidden)
+		return
+	}
+
+	rows, err := rt.db.GetMessage(conversationID, messageID)
+	if err != nil {
+		http.Error(w, "Message not found", http.StatusNotFound)
+		return
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		http.Error(w, "Message not found", http.StatusNotFound)
+		return
+	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+		return
+	}
+
+	message, err := composeMessage(rows, w)
+	if err != nil {
+		http.Error(w, "Error composing message", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(message)
 }

@@ -27,6 +27,7 @@ type Message struct {
 	Timestamp time.Time `json:"timestamp"`
 	Status    string    `json:"status"` // "received" o "read"
 	Content   string    `json:"content"`
+	ReplyTo   int       `json:"replyTo"`
 }
 
 // A comment on a message in a conversation.

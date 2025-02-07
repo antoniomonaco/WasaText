@@ -42,6 +42,7 @@
     <!-- Area input messaggi -->
     <ChatInput
       :replying-to="replyingTo"
+      :replying-message="replyingToMessage"
       @send-message="sendMessage"
       @cancel-reply="cancelReply"
     />
@@ -219,6 +220,8 @@ export default {
       pollingInterval : null,
       isNearBottom: true,
       scrollThreshold: 100, // pixel dal basso che permettono la chiamata a scrollToBottom()
+
+      replyingToMessage: null
     }
   },
   computed: {
@@ -306,8 +309,25 @@ export default {
       }
     },
 
-    replyToMessage(message) {
-      this.replyingTo = message;
+    async replyToMessage(message) {
+      this.replyingTo = {
+        id: message.id
+      };
+      try {
+        const response = await this.$axios.get(
+          `/conversations/${this.conversationID}/messages/${message.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            }
+          }
+        );
+        this.replyingToMessage = response.data;
+      } catch (error) {
+        console.error('Error fetching reply message:', error);
+        this.replyingTo = null;
+        this.replyingToMessage = null;
+      }
       this.selectedMessage = null;
     },
 
@@ -319,6 +339,7 @@ export default {
           {
             type: messagePayload.type || 'text',
             content: messagePayload.type === 'media' ? messagePayload.content : messagePayload.text,
+            replyTo: this.replyingToMessage ? this.replyingToMessage.id : 0
           },
           {
             headers: {
@@ -326,17 +347,21 @@ export default {
             }
           }
         );
-        
-        // Agiungo immediataemtente il messaggio all'array (senza aspettare il polling)
+
         if (response.data) {
-          this.messages = [...(this.messages || []), response.data];
+          const newMessage = {
+            ...response.data,
+            replyTo: this.replyingToMessage ? this.replyingToMessage.id : 0
+          };
+          
+          this.messages = [...this.messages, newMessage];
           this.$nextTick(() => {
             this.scrollToBottom();
           });
         }
-        
-        
+
         this.replyingTo = null;
+        this.replyingToMessage = null;
       } catch (error) {
         console.error('Error sending message:', error);
       }

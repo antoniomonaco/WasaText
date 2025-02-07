@@ -22,24 +22,24 @@
       </div>
 
       <div class="message-content">
-        <!-- Messaggio citato (se presente) -->
+        <!-- Messaggio citato -->
         <div 
-          v-if="message.replyTo" 
+          v-if="replyMessage" 
           class="quoted-message"
         >
           <div class="quoted-sender">
-            {{ getReplyingSenderName(message.replyTo) }}
+            {{ replyMessage.sender?.username || 'Unknown User' }}
           </div>
           <div class="quoted-content">
-            <template v-if="message.replyTo.type === 'media'">
+            <template v-if="replyMessage.type === 'media'">
               <img 
-                :src="message.replyTo.content" 
+                :src="replyMessage.content" 
                 alt="Quoted media"
                 class="quoted-media"
               />
             </template>
             <template v-else>
-              {{ getReplyMessageContent(message.replyTo) }}
+              {{ replyMessage.content }}
             </template>
           </div>
         </div>
@@ -182,7 +182,8 @@ export default {
   data() {
     return {
       showFullImageModal: false,
-      imageError: false
+      imageError: false,
+      replyMessage: null
     }
   },
   computed: {
@@ -201,15 +202,6 @@ export default {
         hour: '2-digit', 
         minute: '2-digit' 
       })
-    },
-    getReplyingSenderName(replyTo) {
-      return replyTo.sender?.username || 'Mittente sconosciuto'
-    },
-    getReplyMessageContent(replyTo) {
-      if (replyTo.type === 'text') {
-        return replyTo.content
-      }
-      return 'Media'
     },
     openMessageMenu(event) {
       this.$emit('open-message-menu', this.message, event)
@@ -230,7 +222,27 @@ export default {
     handleImageError(event) {
       this.imageError = true;
       console.error('Errore nel caricamento dell\'immagine:', this.message.content);
+    },
+    async fetchReplyMessage() {
+      if (this.message.replyTo) {
+        try {
+          const response = await this.$axios.get(
+            `/conversations/${this.$parent.conversationID}/messages/${this.message.replyTo}`,
+            {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem('authToken')}`
+              }
+            }
+          );
+          this.replyMessage = response.data;
+        } catch (error) {
+          console.error('Error fetching reply message:', error);
+        }
+      }
     }
+  },
+  async created() {
+    await this.fetchReplyMessage();
   }
 }
 </script>

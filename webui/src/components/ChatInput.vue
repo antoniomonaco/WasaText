@@ -83,6 +83,10 @@ export default {
     replyingTo: {
       type: Object,
       default: null
+    },
+    replyingMessage: {
+      type: Object,
+      default: null
     }
   },
   data() {
@@ -92,7 +96,8 @@ export default {
       imageBase64: null,
       isProcessingImage: false,
       showSizeWarning: false,
-      showImageInput: false
+      showImageInput: false,
+      replyTo : 0
     }
   },
   computed: {
@@ -172,14 +177,14 @@ export default {
     },
 
     getReplyingSenderName() {
-      return this.replyingTo?.sender?.username || 'Mittente sconosciuto';
+      return this.replyingMessage?.sender?.username || 'Mittente sconosciuto';
     },
 
     getReplyMessageContent() {
-      if (!this.replyingTo) return '';
+      if (!this.replyingMessage) return '';
       
-      if (this.replyingTo.type === 'text') {
-        return this.replyingTo.content;
+      if (this.replyingMessage.type === 'text') {
+        return this.replyingMessage.content;
       }
       return 'Media';
     }
