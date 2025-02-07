@@ -15,7 +15,7 @@
         </div>
       </div>
       <button 
-        class="icon-button" 
+        class="remove-reply-button" 
         @click="cancelReply"
       >
         <i class="fas fa-times"></i>
@@ -206,6 +206,29 @@ export default {
   justify-content: space-between;
   border-left: 4px solid #00a884;
   border-radius: 4px;
+}
+.reply-sender {
+  color : #00a884
+}
+
+.reply-text{
+  color : #e9edef
+}
+
+.remove-reply-button{
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: #202c33;
+  border: none;
+  color: #e9edef;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .image-preview-container {

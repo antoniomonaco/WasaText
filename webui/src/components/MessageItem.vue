@@ -110,6 +110,13 @@
     >
       <div 
         class="menu-item" 
+        @click="$emit('reply-message', message)"
+      >
+        <i class="fas fa-reply"></i>
+        Rispondi
+      </div>
+      <div 
+        class="menu-item" 
         @click="$emit('comment-message', message)"
       >
         <i class="fas fa-comment"></i>

@@ -31,6 +31,7 @@
           :is-message-menu-open="selectedMessage === message.id"
           @open-message-menu="openMessageMenu"
           @comment-message="commentMessage"
+          @reply-message="replyToMessage"
           @show-comments="showComments"
           @forward-message="forwardMessage"
           @delete-message="deleteMessage"
@@ -282,12 +283,19 @@ export default {
           }
         );
         
-        const oldMessagesLength = this.messages.length;
+        // Initialize conversation even if empty
         this.conversation = response.data.conversation;
-        this.messages = response.data.messages;
         
-        // Fa lo scroll solo se ci sono nuovi messaggi
-        if (this.messages.length > oldMessagesLength) {
+        // Initialize messages with empty array if none exist
+        const newMessages = response.data.messages || [];
+        
+        // Check if we have new messages
+        const hasNewMessages = !this.messages || 
+          newMessages.length !== this.messages.length ||
+          JSON.stringify(newMessages) !== JSON.stringify(this.messages);
+
+        if (hasNewMessages) {
+          this.messages = newMessages;
           this.$nextTick(() => {
             this.scrollToBottom();
             this.markMessagesAsRead();
@@ -298,32 +306,40 @@ export default {
       }
     },
 
+    replyToMessage(message) {
+      this.replyingTo = message;
+      this.selectedMessage = null;
+    },
+
     // Metodi di gestione messaggi
-    sendMessage(messagePayload) {
-      const messageData = {
-        type: messagePayload.type || 'text', 
-        content: messagePayload.type === 'media' ? messagePayload.content : messagePayload.text
-      }
-
-      if (messagePayload.replyTo) {
-        messageData.replyTo = messagePayload.replyTo
-      }
-
-      this.$axios.post(
-        `/conversations/${this.conversationID}`,
-        messageData,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('authToken')}`
+    async sendMessage(messagePayload) {
+      try {
+        const response = await this.$axios.post(
+          `/conversations/${this.conversationID}`,
+          {
+            type: messagePayload.type || 'text',
+            content: messagePayload.type === 'media' ? messagePayload.content : messagePayload.text,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            }
           }
+        );
+        
+        // Agiungo immediataemtente il messaggio all'array (senza aspettare il polling)
+        if (response.data) {
+          this.messages = [...(this.messages || []), response.data];
+          this.$nextTick(() => {
+            this.scrollToBottom();
+          });
         }
-      )
-      .then(() => {
-        this.fetchConversation()
-      })
-      .catch(error => {
-        console.error('Errore nell\'invio del messaggio:', error)
-      })
+        
+        
+        this.replyingTo = null;
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
     },
 
     async markMessagesAsRead() {
@@ -722,6 +738,7 @@ export default {
   },
   
   async created() {
+    this.messages = []; // Inizializzo i messaggi per evitare erroriu nelle conversazioni vuote
     await this.fetchConversation();
     this.startPolling();
   },
