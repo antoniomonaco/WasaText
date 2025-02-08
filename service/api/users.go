@@ -36,6 +36,10 @@ func (rt *_router) searchUsers(w http.ResponseWriter, r *http.Request, ps httpro
 		users = append(users, composeUser(userID, username, photoUrl.String))
 
 	}
+	if err := rows.Err(); err != nil {
+		http.Error(w, "Errore durante l'iterazione delle righe", http.StatusInternalServerError)
+		return
+	}
 	defer rows.Close()
 
 	if len(users) == 0 {
