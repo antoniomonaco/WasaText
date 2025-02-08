@@ -56,7 +56,7 @@ background-color: #2a3942;
 border-radius: 8px;
 overflow: hidden;
 width: 100%;
-max-width: 360px;
+max-width: 400px;
 }
 
 .emoji-categories {

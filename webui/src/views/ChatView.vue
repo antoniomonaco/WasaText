@@ -73,7 +73,29 @@
       </CommentsModal>
     </BaseModal>
 
-    <!-- Modal Inoltro -->
+    <!-- Modal Emoji Picker per Commento -->
+    <div 
+      v-if="showEmojiPickerModal" 
+      class="emoji-picker-overlay"
+      @click.self="closeEmojiPickerModal"
+    >
+      <div class="emoji-picker-container">
+        <div class="emoji-picker-header">
+          <h3>Aggiungi Reazione</h3>
+          <button 
+            class="close-button" 
+            @click="closeEmojiPickerModal"
+          >
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <EmojiPicker 
+          @select="submitEmojiComment"
+        />
+      </div>
+    </div>
+
+    <!-- Resto dei modal precedenti -->
     <BaseModal 
       v-if="showForwardModal"
       title="Inoltra messaggio"
@@ -88,7 +110,6 @@
       />
     </BaseModal>
 
-    <!-- Modal Partecipanti -->
     <BaseModal 
       v-if="showParticipantsModal"
       title="Partecipanti del gruppo"
@@ -105,7 +126,6 @@
       />
     </BaseModal>
 
-    <!-- Modal Modifica Gruppo -->
     <BaseModal 
       v-if="showEditGroupModal"
       title="Modifica gruppo"
@@ -118,7 +138,6 @@
       />
     </BaseModal>
 
-    <!-- Modal Aggiungi Partecipanti -->
     <BaseModal 
       v-if="showAddParticipantsModal"
       title="Aggiungi partecipanti"
@@ -134,7 +153,6 @@
         <div class="users-list">
           <div 
             v-for="user in filteredUsers" 
-            
             :key="user.id"
             class="user-item"
             @click="addParticipant(user)"
@@ -164,6 +182,7 @@ import CommentsModal from '@/components/CommentsModal.vue'
 import ForwardModal from '@/components/ForwardModal.vue'
 import ParticipantsModal from '@/components/ParticipantsModal.vue'
 import GroupEditModal from '@/components/GroupEditModal.vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 
 export default {
   name: 'ChatView',
@@ -175,7 +194,8 @@ export default {
     CommentsModal,
     ForwardModal,
     ParticipantsModal,
-    GroupEditModal
+    GroupEditModal,
+    EmojiPicker
   },
   props: {
     conversationID: {
@@ -200,6 +220,7 @@ export default {
       showParticipantsModal: false,
       showEditGroupModal: false,
       showAddParticipantsModal: false,
+      showEmojiPickerModal: false,
 
       // Stato dei commenti
       currentComments: [],
@@ -221,7 +242,8 @@ export default {
       isNearBottom: true,
       scrollThreshold: 100, // pixel dal basso che permettono la chiamata a scrollToBottom()
 
-      replyingToMessage: null
+      replyingToMessage: null,
+      newComment: ''
     }
   },
   computed: {
@@ -286,19 +308,41 @@ export default {
           }
         );
         
-        // Initialize conversation even if empty
         this.conversation = response.data.conversation;
-        
-        // Initialize messages with empty array if none exist
         const newMessages = response.data.messages || [];
         
-        // Check if we have new messages
+        // Carica i commenti per ogni messaggio
+        const messagesWithComments = await Promise.all(
+          newMessages.map(async (message) => {
+            try {
+              const commentsResponse = await this.$axios.get(
+                `/conversations/${this.conversationID}/messages/${message.id}/comments`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${localStorage.getItem('authToken')}`
+                  }
+                }
+              );
+              return {
+                ...message,
+                comments: commentsResponse.data
+              };
+            } catch (error) {
+              console.error(`Error fetching comments for message ${message.id}:`, error);
+              return {
+                ...message,
+                comments: []
+              };
+            }
+          })
+        );
+
         const hasNewMessages = !this.messages || 
-          newMessages.length !== this.messages.length ||
-          JSON.stringify(newMessages) !== JSON.stringify(this.messages);
+          messagesWithComments.length !== this.messages.length ||
+          JSON.stringify(messagesWithComments) !== JSON.stringify(this.messages);
 
         if (hasNewMessages) {
-          this.messages = newMessages;
+          this.messages = messagesWithComments;
           this.$nextTick(() => {
             this.scrollToBottom();
             this.markMessagesAsRead();
@@ -306,6 +350,30 @@ export default {
         }
       } catch (error) {
         console.error('Errore nel recupero della conversazione:', error);
+      }
+    },
+    async updateMessageComments(messageId) {
+      try {
+        const commentsResponse = await this.$axios.get(
+          `/conversations/${this.conversationID}/messages/${messageId}/comments`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            }
+          }
+        );
+        
+        this.messages = this.messages.map(message => {
+          if (message.id === messageId) {
+            return {
+              ...message,
+              comments: commentsResponse.data
+            };
+          }
+          return message;
+        });
+      } catch (error) {
+        console.error(`Error updating comments for message ${messageId}:`, error);
       }
     },
 
@@ -511,11 +579,34 @@ export default {
     },
 
     // Metodo per commentare un messaggio
-    async commentMessage(message) {
-      this.selectedMessageForComments = message
-      this.showCommentsModal = true
-      this.currentComments = [] 
-      this.isLoadingComments = false 
+    commentMessage(message) {
+      this.messageForEmojiComment = message
+      this.showEmojiPickerModal = true
+    },
+
+    closeEmojiPickerModal() {
+      this.showEmojiPickerModal = false
+      this.messageForEmojiComment = null
+    },
+
+    async submitEmojiComment(emoji) {
+      if (!this.messageForEmojiComment) return
+
+      try {
+        const response = await this.$axios.post(
+          `/conversations/${this.conversationID}/messages/${this.messageForEmojiComment.id}/comments`,
+          { content: emoji },
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('authToken')}`
+            }
+          }
+        )
+
+        this.closeEmojiPickerModal()
+      } catch (error) {
+        console.error('Errore nell\'invio del commento:', error)
+      }
     },
 
     // Metodi di inoltro
@@ -883,4 +974,64 @@ export default {
     text-align: center;
     padding: 20px;
   }
+
+.emoji-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.emoji-picker-container {
+  background-color: #1f2c34;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.emoji-picker-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #2a3942;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #202c33;
+}
+
+.emoji-picker-header h3 {
+  color: #e9edef;
+  margin: 0;
+  font-size: 16px;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: #aebac1;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-button:hover {
+  background-color: #384147;
+}
 </style>

@@ -67,14 +67,14 @@
           </div>
         </div>
 
-        <!-- Badge commenti -->
-        <div 
-          v-if="hasComments" 
-          class="comments-badge"
-          @click="$emit('show-comments', message)"
-        >
-          <i class="fas fa-comment"></i>
-          {{ message.comments.length }}
+        <!-- Emoji Reactions -->
+        <div v-if="hasComments" class="emoji-reactions" @click="$emit('show-comments', message)">
+          <div class="emoji-group">
+            <span v-for="(count, emoji) in groupedEmojis" :key="emoji" class="emoji-reaction">
+              {{ emoji }}
+              <span class="emoji-count">{{ count }}</span>
+            </span>
+          </div>
         </div>
 
         <!-- Metadata messaggio -->
@@ -121,13 +121,6 @@
       >
         <i class="fas fa-comment"></i>
         Commenta
-      </div>
-      <div 
-        class="menu-item" 
-        @click="$emit('show-comments', message)"
-      >
-        <i class="fas fa-comments"></i>
-        Visualizza commenti
       </div>
       <div 
         class="menu-item" 
@@ -192,6 +185,27 @@ export default {
     },
     hasComments() {
       return this.message.comments && this.message.comments.length > 0
+    },
+    groupedEmojis() {
+      if (!this.message.comments) return {};
+      
+      // Group identical emojis and count them
+      const emojiCounts = this.message.comments.reduce((acc, comment) => {
+        const emoji = comment.content;
+        acc[emoji] = (acc[emoji] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Sort by count (descending) and take top 3
+      const sortedEmojis = Object.entries(emojiCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 3)
+        .reduce((obj, [key, value]) => ({
+          ...obj,
+          [key]: value
+        }), {});
+
+      return sortedEmojis;
     }
   },
   methods: {
@@ -200,8 +214,7 @@ export default {
       const date = new Date(timestamp)
       return date.toLocaleTimeString([], { 
         hour: '2-digit', 
-        minute: '2-digit' ,
-        timezone : 'UTC'
+        minute: '2-digit' 
       })
     },
     openMessageMenu(event) {
@@ -215,14 +228,12 @@ export default {
       this.showFullImageModal = false
       document.body.style.overflow = 'auto'
     },
-    handleImageLoad(event) {
+    handleImageLoad() {
       this.imageError = false;
-      console.log('Immagine caricata:', this.message);
       this.$emit('media-loaded');
     },
-    handleImageError(event) {
+    handleImageError() {
       this.imageError = true;
-      console.error('Errore nel caricamento dell\'immagine:', this.message.content);
     },
     async fetchReplyMessage() {
       if (this.message.replyTo) {
@@ -254,6 +265,7 @@ export default {
   position: relative;
   max-width: 65%;
   margin: 2px 0;
+  margin-bottom: 14px;
 }
 
 .message-wrapper.sent {
@@ -394,8 +406,8 @@ export default {
   content: "";
   position: absolute;
   top: 0;
-  right: -8px;
-  width: 8px;
+  right: -7px;
+  width: 14px;
   height: 13px;
   background: linear-gradient(
     to top left,
@@ -409,7 +421,7 @@ export default {
   position: absolute;
   top: 0;
   left: -8px;
-  width: 8px;
+  width: 14px;
   height: 13px;
   background: linear-gradient(
     to top right,
@@ -509,5 +521,40 @@ export default {
 
 .close-button:hover {
   background-color: rgba(255, 255, 255, 0.1);
+}
+.emoji-reactions {
+  position: absolute;
+  bottom: -50px;
+  left: -20px;
+  display: flex;
+  gap: 4px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.message {
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.emoji-group {
+  display: flex;
+  gap: 8px;
+  background-color: #202c33;
+  padding: 4px 8px;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.emoji-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.emoji-count {
+  color: #8696a0;
+  font-size: 12px;
 }
 </style>
