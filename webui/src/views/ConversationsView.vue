@@ -70,24 +70,21 @@ export default {
 
   computed: {
     filteredConversations() {
-        let conversations = this.conversations;
-        
-        // Filtra per ricerca se necessario
-        if (this.searchQuery) {
-            const query = this.searchQuery.toLowerCase();
-            conversations = conversations.filter(conversation => {
-                const conversationName = this.getConversationName(conversation).toLowerCase();
-                const lastMessage = this.getMessagePreview(conversation).toLowerCase();
-                return conversationName.includes(query) || lastMessage.includes(query);
-            });
-        }
+      // Early return empty array if conversations is not initialized
+      if (!this.conversations || !Array.isArray(this.conversations)) {
+        return [];
+      }
 
-        // Ordina per timestamp dell'ultimo messaggio
-        return conversations.sort((a, b) => {
-            const timeA = a.latestMessage?.timestamp ? new Date(a.latestMessage.timestamp) : new Date(0);
-            const timeB = b.latestMessage?.timestamp ? new Date(b.latestMessage.timestamp) : new Date(0);
-            return timeB - timeA;
-        });
+      if (!this.searchQuery) {
+        return this.conversations;
+      }
+
+      const query = this.searchQuery.toLowerCase();
+      return this.conversations.filter(conversation => {
+        const conversationName = this.getConversationName(conversation).toLowerCase();
+        const lastMessage = this.getMessagePreview(conversation).toLowerCase();
+        return conversationName.includes(query) || lastMessage.includes(query);
+      });
     }
   },
 
@@ -190,9 +187,10 @@ export default {
             Authorization: `Bearer ${localStorage.getItem('authToken')}`
           }
         });
-        this.conversations = response.data;
+        this.conversations = response.data || [];
       } catch (error) {
         console.error('Errore nel recupero delle conversazioni:', error);
+        this.conversations = [];
       }
     },
 

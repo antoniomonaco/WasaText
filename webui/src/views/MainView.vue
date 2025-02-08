@@ -46,7 +46,7 @@
           <i class="fas fa-search search-icon"></i>
           <input 
             type="text" 
-            placeholder="Cerca o inizia una nuova chat"
+            placeholder="Cerca una chat"
             v-model="searchQuery"
             class="search-input"
           />
