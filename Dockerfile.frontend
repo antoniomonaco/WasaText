@@ -1,5 +1,5 @@
 # [Istruzioni]
-# Creazione : $ docker build -f Dockerfile.frontend -t frontend:latest . 
+# Creazione : docker build -f Dockerfile.frontend -t frontend:latest . 
 # Esecuzione : docker run -it --rm -p 8080:80  frontend:latest
 
 FROM node:lts as builder
