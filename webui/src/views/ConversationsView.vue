@@ -23,7 +23,7 @@
             <span class="conversation-name">
               {{ getConversationName(conversation) }}
             </span>
-            <span class="conversation-time" v-if="conversation.latestMessage">
+            <span class="conversation-time" v-if="hasValidLatestMessage(conversation)">
               {{ formatConversationTime(conversation.latestMessage.timestamp) }}
             </span>
           </div>
@@ -31,7 +31,7 @@
           <div class="conversation-preview">
             <!-- Anteprima ultimo messaggio -->
             <div class="message-preview" :class="{'unread': hasUnreadMessages(conversation)}">
-              <span v-if="conversation.latestMessage && conversation.latestMessage.sender.id === currentUserId">
+              <span v-if="hasValidLatestMessage(conversation) && conversation.latestMessage.sender.id === currentUserId">
                 <i class="fas fa-check message-status" 
                    :class="{'read': conversation.latestMessage.status === 'read'}">
                 </i>
@@ -89,6 +89,15 @@ export default {
   },
 
   methods: {
+    hasValidLatestMessage(conversation) {
+      if (!conversation.latestMessage || !conversation.latestMessage.timestamp) {
+        return false;
+      }
+      const date = new Date(conversation.latestMessage.timestamp);
+      // Consideriamo non valide le date prima del 2000 (che sono probabilmente date di default/epoch)
+      return date.getFullYear() >= 2000;
+    },
+
     getConversationName(conversation) {
       if (conversation.type === 'group') {
         return conversation.name || 'Gruppo senza nome';
@@ -110,7 +119,7 @@ export default {
     },
 
     getMessagePreview(conversation) {
-      if (!conversation.latestMessage) return 'Nessun messaggio';
+      if (!this.hasValidLatestMessage(conversation)) return 'Nessun messaggio';
       
       const message = conversation.latestMessage;
       if (message.type === 'text') {
@@ -180,7 +189,7 @@ export default {
     },
 
     async fetchConversations() {
-      console.log("Auth code: ",localStorage.getItem('authToken'))
+      // console.log("Auth code: ",localStorage.getItem('authToken'))
       try {
         const response = await this.$axios.get('/conversations/', {
           headers: {
@@ -200,7 +209,7 @@ export default {
     },
 
     startPolling() {
-      this.pollingInterval = setInterval(this.fetchConversations, 5000);
+      this.pollingInterval = setInterval(this.fetchConversations, 1000);
     },
 
     stopPolling() {
