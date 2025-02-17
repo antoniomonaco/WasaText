@@ -15,7 +15,6 @@ import (
 const chat = "chat"
 const group = "group"
 
-// getMyConversations gestisce la richiesta per ottenere tutte le conversazioni dell'utente.
 // Restituisce una lista di conversazioni.
 func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID := reqcontext.UserIDFromContext(r.Context())
@@ -254,11 +253,11 @@ func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps
 		return
 	}
 
-	// Mi assicuro che l'utente corrente sia incluso nei partecipanti
 	participantsSet := make(map[int]struct{})
 	for _, p := range request.Participants {
 		participantsSet[p] = struct{}{}
 	}
+	// Mi assicuro che l'utente corrente sia incluso nei partecipanti
 	participantsSet[IDFromContext] = struct{}{}
 
 	// Converto il set in una slice

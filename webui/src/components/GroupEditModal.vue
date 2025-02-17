@@ -264,7 +264,7 @@ export default {
         name: this.editedName.trim()
       };
 
-      // Aggiungi la foto solo se è stata modificata
+      // Aggiungo la foto solo se è stata modificata
       if (this.uploadMode === 'url' && this.editedPhotoUrl) {
         groupData.photoUrl = this.editedPhotoUrl.trim();
       } else if (this.uploadMode === 'file' && this.photoBase64) {

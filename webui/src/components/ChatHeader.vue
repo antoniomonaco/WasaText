@@ -112,11 +112,9 @@ export default {
     }
   },
   mounted() {
-    // Usa addEventListener invece di this.$once
     document.addEventListener('click', this.handleOutsideClick)
   },
   beforeUnmount() {
-    // Rimuovi l'event listener quando il componente viene distrutto
     document.removeEventListener('click', this.handleOutsideClick)
   }
 }

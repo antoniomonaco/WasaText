@@ -195,7 +195,7 @@ export default {
         this.selectedUsers = [user.id]
       } else {
         // Per i gruppi, permette selezione multipla
-        if (index === -1) {
+        if (index === -1) { // Se l'utente NON è già selezionato
           this.selectedUsers.push(user.id)
         } else {
           this.selectedUsers.splice(index, 1)

@@ -95,7 +95,7 @@
       </div>
     </div>
 
-    <!-- Resto dei modal precedenti -->
+    <!-- Modal Per il forward del messaggio-->
     <BaseModal 
       v-if="showForwardModal"
       title="Inoltra messaggio"
@@ -110,6 +110,7 @@
       />
     </BaseModal>
 
+    <!-- Modal per mostrare i partecipanti ad un gruppo -->
     <BaseModal 
       v-if="showParticipantsModal"
       title="Partecipanti del gruppo"
@@ -126,6 +127,7 @@
       />
     </BaseModal>
 
+    <!-- Modal per la modifica del gruppo -->
     <BaseModal 
       v-if="showEditGroupModal"
       title="Modifica gruppo"
@@ -138,6 +140,7 @@
       />
     </BaseModal>
 
+    <!-- Modal per aggiungere partecipanti al gruppo -->
     <BaseModal 
       v-if="showAddParticipantsModal"
       title="Aggiungi partecipanti"
@@ -246,9 +249,11 @@ export default {
       newComment: ''
     }
   },
+
+  // Le computed properties vengono aggiornate automaaticamente ogni volta che le loro dipendenze cambiano (es. this.conversation) 
   computed: {
     conversationName() {
-      if (!this.conversation) return 'Caricamento...'
+      if (!this.conversation) return 'Caricamento...' // Se la conversazione non è stata ancora caricata mostro un caricamento
       
       if (this.isGroup) {
         return this.conversation.name || 'Gruppo senza nome'
@@ -340,6 +345,7 @@ export default {
         const hasNewMessages = !this.messages || 
           messagesWithComments.length !== this.messages.length ||
           JSON.stringify(messagesWithComments) !== JSON.stringify(this.messages);
+          // uso JSON.stringify per confrontare gli array
 
         if (hasNewMessages) {
           this.messages = messagesWithComments;
@@ -389,7 +395,7 @@ export default {
               Authorization: `Bearer ${localStorage.getItem('authToken')}`
             }
           }
-        );
+        ); 
         this.replyingToMessage = response.data;
       } catch (error) {
         console.error('Error fetching reply message:', error);
@@ -836,7 +842,7 @@ export default {
     scrollToBottom() {
       this.$nextTick(() => {
         const container = this.$refs.messagesContainer;
-        if (container && this.isNearBottom) {
+        if (container && this.isNearBottom) { // Per evitare errori controllo se il container è stato caricato
           container.scrollTop = container.scrollHeight;
         }
       });
